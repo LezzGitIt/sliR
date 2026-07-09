@@ -1,0 +1,239 @@
+
+<!-- README.md is generated from README.Rmd. Please edit that file, then run rmarkdown::render("README.Rmd"). -->
+
+# sliR
+
+<!-- badges: start -->
+
+<!-- badges: end -->
+
+sliR computes the **Standardized Length Index (SLI)**, a size correction
+for appendage lengths, and simulates allometric morphological data with
+a known scaling exponent, correlation structure, and error.
+
+The SLI adapts the scaled mass index of [Peig & Green
+(2009)](https://doi.org/10.1111/j.1600-0706.2009.17643.x). Where their
+index standardises *mass* to a reference *length*, the SLI standardises
+a *length* to a reference *mass*:
+
+$$SLI_i = A_i \left( \frac{L_0}{M_i} \right)^{b}$$
+
+for individual $i$ with appendage length $A_i$ and body mass $M_i$, an
+arbitrary reference mass $L_0$, and an allometric scaling exponent $b$.
+
+## Installation
+
+``` r
+# install.packages("remotes")
+remotes::install_github("LezzGitIt/sliR")
+```
+
+## Computing the SLI
+
+Simulate a set of individuals, then size-correct their appendage lengths
+under geometric similarity ($b = 1/3$, so linear dimensions scale with
+the cube root of mass).
+
+``` r
+library(sliR)
+
+set.seed(1)
+birds <- sim_allometric(n = 500, b_avg = 0.33, r_am = 0.3)
+
+calc_sli(birds, b_sli = 0.33)
+#> # A tibble: 496 × 6
+#>    Append  Mass  Temp Append_log Mass_log   sli
+#>     <dbl> <dbl> <dbl>      <dbl>    <dbl> <dbl>
+#>  1   186.  86.1 1.05        5.23     4.46  182.
+#>  2   185.  81.5 1.13        5.22     4.40  184.
+#>  3   171.  81.3 1.08        5.14     4.40  170.
+#>  4   183.  73.1 1.05        5.21     4.29  189.
+#>  5   185.  79.6 0.863       5.22     4.38  185.
+#>  6   176.  81.8 0.612       5.17     4.40  175.
+#>  7   180.  78.4 1.27        5.19     4.36  181.
+#>  8   170.  72.4 0.902       5.14     4.28  176.
+#>  9   178.  75.6 0.744       5.18     4.33  182.
+#> 10   181.  83.0 1.22        5.20     4.42  179.
+#> # ℹ 486 more rows
+```
+
+`calc_sli()` appends a column and returns the rows in their original
+order, so it chains: several indices can sit side by side for
+comparison.
+
+``` r
+library(dplyr)
+
+est_b <- coef(smatr::sma(Append_log ~ Mass_log, data = birds))[["slope"]]
+
+birds |>
+  calc_sli(b_sli = 0.33,  rename_col = "sli_isometry") |>
+  calc_sli(b_sli = est_b, rename_col = "sli_estimated") |>
+  select(Append, Mass, sli_isometry, sli_estimated)
+#> # A tibble: 496 × 4
+#>    Append  Mass sli_isometry sli_estimated
+#>     <dbl> <dbl>        <dbl>         <dbl>
+#>  1   186.  86.1         182.          179.
+#>  2   185.  81.5         184.          184.
+#>  3   171.  81.3         170.          169.
+#>  4   183.  73.1         189.          192.
+#>  5   185.  79.6         185.          185.
+#>  6   176.  81.8         175.          175.
+#>  7   180.  78.4         181.          182.
+#>  8   170.  72.4         176.          179.
+#>  9   178.  75.6         182.          184.
+#> 10   181.  83.0         179.          178.
+#> # ℹ 486 more rows
+```
+
+$L_0$ is an arbitrary reference: changing it rescales every SLI by a
+constant, which changes the index’s units but never the ranking of
+individuals or the result of any subsequent analysis. It defaults to the
+mean of `Mass`.
+
+If your columns are not named `Append` and `Mass`, name them yourself —
+the arguments are unquoted:
+
+``` r
+lowercase <- rename(birds, wing = Append, mass = Mass)
+calc_sli(lowercase, Append = wing, Mass = mass, b_sli = 0.33)
+#> # A tibble: 496 × 6
+#>     wing  mass  Temp Append_log Mass_log   sli
+#>    <dbl> <dbl> <dbl>      <dbl>    <dbl> <dbl>
+#>  1  186.  86.1 1.05        5.23     4.46  182.
+#>  2  185.  81.5 1.13        5.22     4.40  184.
+#>  3  171.  81.3 1.08        5.14     4.40  170.
+#>  4  183.  73.1 1.05        5.21     4.29  189.
+#>  5  185.  79.6 0.863       5.22     4.38  185.
+#>  6  176.  81.8 0.612       5.17     4.40  175.
+#>  7  180.  78.4 1.27        5.19     4.36  181.
+#>  8  170.  72.4 0.902       5.14     4.28  176.
+#>  9  178.  75.6 0.744       5.18     4.33  182.
+#> 10  181.  83.0 1.22        5.20     4.42  179.
+#> # ℹ 486 more rows
+```
+
+## Group-specific allometric slopes
+
+A single exponent for the whole sample assumes every group scales alike.
+When age or sex classes have their own allometry, pass them as `control`
+and each individual is corrected with their own group’s SMA slope.
+
+``` r
+birds$Sex <- rep(c("F", "M"), length.out = nrow(birds))
+birds$Age <- rep(c("Juv", "Adult"), each = 2, length.out = nrow(birds))
+
+build_sli_slopes_tbl(birds, control = c("Age", "Sex"))
+#> # A tibble: 4 × 6
+#>   Age   Sex       n b_sma_Age b_sma_Sex b_sli_avg
+#>   <chr> <chr> <int>     <dbl>     <dbl>     <dbl>
+#> 1 Adult F       124     0.514     0.486     0.500
+#> 2 Adult M       124     0.514     0.505     0.509
+#> 3 Juv   F       124     0.478     0.486     0.482
+#> 4 Juv   M       124     0.478     0.505     0.491
+```
+
+Note the structure: with two control variables this fits *two* models —
+mass interacted with age, and mass interacted with sex — and averages
+their slopes per cell, rather than fitting a single age × sex
+interaction. That keeps each slope estimated at the marginal rather than
+the joint sample size.
+
+`calc_sli()` calls this for you. Individuals whose group is `NA` or
+unknown-coded receive `sli = NA` and keep their row.
+
+``` r
+calc_sli(birds, control = c("Age", "Sex")) |>
+  select(Append, Mass, Age, Sex, sli)
+#> # A tibble: 496 × 5
+#>    Append  Mass Age   Sex     sli
+#>     <dbl> <dbl> <chr> <chr> <dbl>
+#>  1   186.  86.1 Juv   F      180.
+#>  2   185.  81.5 Juv   M      184.
+#>  3   171.  81.3 Adult F      169.
+#>  4   183.  73.1 Adult M      192.
+#>  5   185.  79.6 Juv   F      185.
+#>  6   176.  81.8 Juv   M      175.
+#>  7   180.  78.4 Adult F      182.
+#>  8   170.  72.4 Adult M      179.
+#>  9   178.  75.6 Juv   F      184.
+#> 10   181.  83.0 Juv   M      178.
+#> # ℹ 486 more rows
+```
+
+Before trusting per-group slopes, check that each group *has* an
+allometric relationship to fit. A group whose mass and appendage length
+are uncorrelated yields a slope that is noise.
+
+``` r
+build_group_cor_tbl(birds, control = c("Age", "Sex"))
+#> # A tibble: 4 × 6
+#>   Age   Sex       n b_ols     r   p_value
+#>   <chr> <chr> <int> <dbl> <dbl>     <dbl>
+#> 1 Adult F       124 0.201 0.211 0.0186   
+#> 2 Adult M       124 0.280 0.364 0.0000327
+#> 3 Juv   F       124 0.290 0.335 0.000140 
+#> 4 Juv   M       124 0.322 0.322 0.000269
+```
+
+## Simulating allometric data
+
+`sim_allometric()` draws from a multivariate log-normal whose covariance
+is built from a *target allometric slope* rather than from raw standard
+deviations. `b_avg` is the mean of the OLS and SMA slopes of log
+appendage on log mass:
+
+``` r
+set.seed(3)
+d <- sim_allometric(n = 2000, b_avg = 0.33, r_am = 0.3, trim_sd = NULL)
+
+b_ols <- coef(lm(Append_log ~ Mass_log, data = d))[[2]]
+b_sma <- coef(smatr::sma(Append_log ~ Mass_log, data = d))[["slope"]]
+
+c(b_ols = b_ols, b_sma = b_sma, b_avg = mean(c(b_ols, b_sma)))
+#>     b_ols     b_sma     b_avg 
+#> 0.1523077 0.5076923 0.3300000
+```
+
+Error comes in two flavours, each a fraction of the trait’s own standard
+deviation. `meas_error` is observer error and hits both traits;
+`transient_error_*` is genuine short-term biological fluctuation, which
+afflicts mass far more than a skeletal appendage. Because that
+fluctuation is independent of the appendage, it attenuates the observed
+relationship:
+
+``` r
+set.seed(5)
+clean <- sim_correlated(n = 2000, r = 0.3)
+set.seed(5)
+noisy <- sim_correlated(n = 2000, r = 0.3, transient_error_mass = 1)
+
+c(clean = cor(clean$Append, clean$Mass),
+  noisy = cor(noisy$Append, noisy$Mass))
+#>    clean    noisy 
+#> 0.300000 0.196199
+```
+
+`sim_correlated()` is the simpler raw-scale counterpart, with no log
+transform and no allometric target — useful for building intuition about
+how a fitted slope responds to correlation and to error on one trait but
+not the other. `build_cov_mat()` exposes the covariance matrix that
+`sim_allometric()` consumes.
+
+## Function reference
+
+| Function | Purpose |
+|----|----|
+| `calc_sli()` | Standardized Length Index per individual |
+| `calc_lambda()` | Ratio of squared CVs; its square root approximates the SMA slope |
+| `build_sli_slopes_tbl()` | Per-group SMA allometric slopes |
+| `build_group_cor_tbl()` | Per-group diagnostic for whether allometry is meaningful |
+| `sim_allometric()` | Log-normal traits with a target allometric slope |
+| `sim_correlated()` | Raw-scale correlated appendage and mass |
+| `build_cov_mat()` | Log-scale covariance matrix behind `sim_allometric()` |
+
+## Reference
+
+Peig, J. & Green, A.J. (2009) New perspectives for estimating body
+condition from mass/length data: the scaled mass index as an alternative
+method. *Oikos* 118, 1883–1891.
