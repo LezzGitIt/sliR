@@ -1,0 +1,27 @@
+## Version and year are read from DESCRIPTION at build time, so this file never goes stale.
+# `%||%` is avoided: it only reaches base R in 4.4, and this package supports 4.1.
+year <- format(Sys.Date(), "%Y")
+if (!is.null(meta$Date) && nzchar(meta$Date)) year <- sub("-.*", "", meta$Date)
+version <- if (is.null(meta$Version)) "0.1.0" else meta$Version
+
+citHeader("To cite sliR in publications, please use:")
+
+bibentry(
+  bibtype  = "Manual",
+  title    = "{sliR}: Standardized Length Index and Allometric Data Simulation",
+  author   = person("Aaron", "Skinner"),
+  year     = year,
+  note     = paste("R package version", version),
+  url      = "https://github.com/LezzGitIt/sliR",
+  textVersion = paste0(
+    "Skinner, A. (", year, "). sliR: Standardized Length Index and Allometric ",
+    "Data Simulation. R package version ", version,
+    ". https://github.com/LezzGitIt/sliR"
+  )
+)
+
+citFooter(
+  "The Standardized Length Index adapts the scaled mass index of ",
+  "Peig & Green (2009) Oikos 118:1883-1891. SMA slopes are fitted with smatr; ",
+  "see citation(\"smatr\")."
+)

@@ -2,97 +2,153 @@
 % Please edit documentation in R/simulate.R
 \name{sim_allometric}
 \alias{sim_allometric}
-\title{Simulate log-normal morphological data with a target allometric slope}
+\title{Simulate log-normal morphology, optionally along an environmental gradient}
 \usage{
 sim_allometric(
   n = 3000,
-  b_avg = 0.33,
-  r_am = 0.3,
-  r_at = -0.1,
-  r_mt = -0.1,
-  mean_mass = 80,
+  r_app_mass = NULL,
+  b_ols = NULL,
+  b_sma = NULL,
+  b_avg = NULL,
+  sd_log_append = NULL,
+  sd_log_mass = NULL,
   mean_append = 180,
-  mean_temp = 1,
-  sd_log_morph = 0.07,
-  vary = c("mass", "append"),
-  sd_temp = 0.18,
+  mean_mass = 80,
+  gradient = NULL,
+  gradient_dist = c("uniform", "normal"),
+  gradient_range = NULL,
+  mean_gradient = 0,
+  sd_gradient = 1,
+  r_grad_app = 0,
+  r_grad_mass = 0,
   meas_error = 0,
-  transient_error_mass = 0,
   transient_error_append = 0,
+  transient_error_mass = 0,
   trim_sd = 3,
+  log = TRUE,
   empirical = TRUE
 )
 }
 \arguments{
 \item{n}{Number of individuals to draw, before trimming.}
 
-\item{b_avg}{Target average of the OLS and SMA slopes of log appendage on
-log mass. The default \code{0.33} corresponds to geometric similarity.}
+\item{r_app_mass}{Pearson correlation between \code{log(Append)} and \code{log(Mass)}.
+Must be non-zero.}
 
-\item{r_am, r_at, r_mt}{Pearson correlations on the log scale between
-appendage and mass, appendage and temperature, and mass and temperature.
-\code{r_am} must be non-zero.}
+\item{b_ols, b_sma, b_avg}{The OLS, SMA, and midpoint slopes of \code{log(Append)}
+on \code{log(Mass)}.}
 
-\item{mean_mass, mean_append}{Means of mass and appendage length on the raw
-scale; used as the log-scale location via \code{log()}.}
+\item{sd_log_append, sd_log_mass}{Log-scale standard deviations.}
 
-\item{mean_temp}{Mean temperature, on its natural scale.}
+\item{mean_append, mean_mass}{Raw-scale means, used as the log-scale location
+via \code{log()}.}
 
-\item{sd_log_morph}{Standard deviation on the log scale of whichever
-morphological trait \code{vary} names. To reproduce a randomly drawn value, as
-opposed to a fixed one, pass e.g. \code{sd_log_morph = runif(1, 0.05, 0.09)}.}
+\item{gradient}{Optional string naming an environmental gradient (e.g.
+\code{"Temperature"}). \code{NULL} (the default) returns the 2x2 morphological block.}
 
-\item{vary}{Which trait \code{sd_log_morph} refers to: \code{"mass"} (the default) or
-\code{"append"}. The other trait's standard deviation is derived from \code{b_avg}
-and \code{r_am}.}
+\item{gradient_dist}{Marginal distribution of the gradient: \code{"uniform"} (the
+default) or \code{"normal"}.}
 
-\item{sd_temp}{Standard deviation of temperature.}
+\item{gradient_range}{Two increasing numbers giving the gradient's bounds,
+e.g. \code{c(1970, 2026)}. Uniform gradients only. Determines \code{mean_gradient}
+and \code{sd_gradient}, which must then not be supplied.}
 
-\item{meas_error}{Measurement error, as a fraction of each trait's standard
+\item{mean_gradient, sd_gradient}{Location and spread of the gradient.
+Default to \code{0} and \code{1}, a z-scored gradient.}
+
+\item{r_grad_app, r_grad_mass}{Correlations of the gradient with
+\code{log(Append)} and \code{log(Mass)}. Ignored when \code{gradient} is \code{NULL}.}
+
+\item{meas_error}{Observer error, as a fraction of each trait's standard
 deviation. Applied to both traits.}
 
-\item{transient_error_mass, transient_error_append}{Biological fluctuation,
-as a fraction of that trait's standard deviation.}
+\item{transient_error_append, transient_error_mass}{Biological fluctuation, as
+a fraction of that trait's standard deviation.}
 
-\item{trim_sd}{Drop individuals lying more than \code{trim_sd} raw-scale standard
+\item{trim_sd}{Drop individuals more than \code{trim_sd} raw-scale standard
 deviations from the mean of \code{Append} or \code{Mass}. \code{NULL} disables trimming.
-Because the traits are log-normal, raw-scale trimming is asymmetric and
-removes more of the right tail than the left.}
+The gradient is never trimmed. Because the traits are log-normal, raw-scale
+trimming is asymmetric and removes more of the right tail than the left.}
+
+\item{log}{If \code{TRUE} (the default), append the \code{Append_log} and \code{Mass_log}
+columns, computed after error is added. \code{FALSE} returns the raw traits and
+the gradient only.}
 
 \item{empirical}{If \code{TRUE} (the default), the drawn sample has exactly the
-specified means and covariance, rather than being a random draw from a
-population with those parameters. Trimming and error break this guarantee.}
+requested moments and correlations, rather than being a random draw from a
+population with them. Trimming and error break this guarantee.}
 }
 \value{
-A tibble with \code{n} rows or fewer: \code{Append}, \code{Mass}, \code{Temp}, and the
-log-scale \code{Append_log} and \code{Mass_log}, computed after error is added.
+A tibble with \code{n} rows or fewer: \code{Append}, \code{Mass}, the gradient
+column if requested, and \code{Append_log}, \code{Mass_log} unless \code{log = FALSE}.
 }
 \description{
-Draws appendage length, body mass, and temperature from a multivariate
-normal on the log scale (temperature stays on its natural scale), then
-exponentiates the morphological traits. The covariance structure comes from
-\code{\link[=build_cov_mat]{build_cov_mat()}}, so the realised allometric slope matches \code{b_avg} up to
-the distortion introduced by trimming and by any error you add.
+Draws appendage length and body mass from a bivariate log-normal with a
+specified allometry, and optionally an exogenous environmental gradient
+(temperature, latitude, year, rainfall) that both traits respond to linearly.
 }
 \details{
-Error is added on the raw scale, after exponentiation, and each component is
-expressed as a fraction of the trait's own standard deviation. The two
-components are statistically identical draws with different interpretations:
-\code{meas_error} is observer error, applied to both traits alike, while
-\verb{transient_error_*} represents real short-term biological fluctuation, which
-typically afflicts mass far more than a skeletal appendage.
+The allometry is resolved by \code{\link[=implied_allometry]{implied_allometry()}}. Supply \strong{two} of
+\code{r_app_mass}, \code{b_ols}, \code{b_sma}, \code{b_avg}, or none to accept the isometric
+default \verb{b_sma = 1/3, r_app_mass = 0.3}. Supplying exactly one is an error.
+\code{sd_log_append} and \code{sd_log_mass} set the scale and default to
+\code{sd_log_mass = 0.07}; they leave every slope and correlation unchanged.
 }
+\section{The gradient}{
+
+The gradient is a \strong{sampling design variable}, not a third trait, so it is
+drawn exogenously and the log traits are built linearly from it. Its marginal
+is therefore free, and it defaults to \code{"uniform"} because:
+\itemize{
+\item \strong{it is bounded}, so \code{gradient_range = c(-90, 90)} really does yield
+latitudes within \eqn{\pm 90}, and years stay inside their range;
+\item \strong{it covers the gradient evenly.} Across 15 equal-width bins a normal
+gradient leaves the extreme bins nearly empty, with the fullest bin
+thousands of times the emptiest; a uniform one is flat.
+}
+
+\code{gradient_dist = "normal"} recovers the ordinary three-variable multivariate
+normal. Either way \code{r_grad_app} is the correlation of the gradient with
+\code{log(Append)} (not with \code{Append}), and \eqn{E[\log A \mid G]} is linear in
+\eqn{G} by construction.
+
+Not every set of correlations is attainable. An appendage that lengthens
+while mass falls along the gradient is incompatible with a strong positive
+appendage-mass correlation, and such a request is rejected rather than
+silently approximated.
+}
+
+\section{Error}{
+
+Error is added on the raw scale, after exponentiation, each component a
+fraction of the trait's own standard deviation. \code{meas_error} is observer
+error and applies to both traits alike; \verb{transient_error_*} represents real
+short-term biological fluctuation, which afflicts mass far more than a
+skeletal appendage.
+}
+
 \examples{
 set.seed(1)
-d <- sim_allometric(n = 500, b_avg = 0.33, r_am = 0.3)
-coef(smatr::sma(Append_log ~ Mass_log, data = d))
 
-# Mass fluctuates transiently; the appendage does not
-set.seed(1)
-sim_allometric(n = 500, transient_error_mass = 0.5)
+# Isometry, no gradient
+d <- sim_allometric(n = 500)
+coef(smatr::sma(Append_log ~ Mass_log, data = d))[["slope"]]
+
+# Allen's rule: warmer places, relatively longer appendages
+warm <- sim_allometric(
+  n = 500, gradient = "Temperature", gradient_range = c(0, 24),
+  r_grad_app = 0.3, r_grad_mass = -0.1
+)
+range(warm$Temperature)
+
+# A century of specimens, drawn evenly across years
+yr <- sim_allometric(n = 500, gradient = "Year", gradient_range = c(1970, 2026))
+
+# Raw traits only
+names(sim_allometric(n = 10, log = FALSE))
 
 }
 \seealso{
-\code{\link[=sim_correlated]{sim_correlated()}} for a simpler raw-scale bivariate draw with no
-allometric target.
+\code{\link[=implied_allometry]{implied_allometry()}} to inspect what a parameter set implies, and
+\code{\link[=sim_correlated]{sim_correlated()}} for a raw-scale bivariate draw with no allometric target.
 }

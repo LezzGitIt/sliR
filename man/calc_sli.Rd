@@ -9,9 +9,10 @@ calc_sli(
   Append = Append,
   Mass = Mass,
   b_sli = 0.33,
-  L0 = NULL,
+  M0 = NULL,
   control = NULL,
   unknown_codes = c("Unk", "U", "Unknown"),
+  slope_diff_warn = 0.15,
   rename_col = NULL,
   sort = FALSE
 )
@@ -24,15 +25,16 @@ calc_sli(
 columns are named otherwise, pass them explicitly (e.g. \verb{Append = wing, Mass = mass}); an informative error is raised if the columns are absent.}
 
 \item{b_sli}{Scalar allometric scaling exponent. The default \code{0.33}
-(\eqn{\approx 1/3}) assumes geometric similarity, under which linear
+(\eqn{\approx 1/3}) assumes isometry, under which linear
 dimensions scale with the cube root of mass. Ignored when \code{control} is
 supplied. Set it to an empirically estimated SMA slope to relax isometry.}
 
-\item{L0}{Reference mass to which all individuals are standardised. \code{NULL}
-(the default) uses the mean of \code{Mass}. Peig & Green treat \eqn{L_0} as an
-arbitrary scalar: it rescales every SLI value by a constant factor and so
-changes the units of the index, never the ranking of individuals or the
-result of any subsequent location-invariant analysis.}
+\item{M0}{Reference mass to which all individuals are standardised. \code{NULL}
+(the default) uses the mean of \code{Mass}. \eqn{M_0} is an arbitrary scalar: it
+rescales every SLI value by a constant factor and so changes the units of
+the index, never the ranking of individuals or the result of any subsequent
+location-invariant analysis. (Peig & Green call this \eqn{L_0}, because
+their index standardises to a reference \emph{length}; the SLI inverts that.)}
 
 \item{control}{Optional character vector of grouping columns (e.g.
 \code{c("Age", "Sex")}). When supplied, \code{build_sli_slopes_tbl()} estimates a
@@ -42,6 +44,10 @@ averaged slope in place of \code{b_sli}. Individuals whose \code{control} values
 
 \item{unknown_codes}{Values in the \code{control} columns that mark an unknown
 group and so cannot be assigned a slope.}
+
+\item{slope_diff_warn}{Passed to \code{\link[=build_sli_slopes_tbl]{build_sli_slopes_tbl()}}. Warn when the
+per-variable SMA slopes averaged within a group differ by more than this.
+Only relevant with two or more \code{control} variables.}
 
 \item{rename_col}{Optional string naming the output column. \code{NULL} (the
 default) leaves it as \code{sli}.}
@@ -59,15 +65,15 @@ Whereas their index standardises \emph{mass} to a reference \emph{length}, the S
 standardises a \emph{length} to a reference \emph{mass}:
 }
 \details{
-\deqn{SLI_i = A_i \left( \frac{L_0}{M_i} \right)^{b}}
+\deqn{SLI_i = A_i \left( \frac{M_0}{M_i} \right)^{b}}
 
 where \eqn{A_i} and \eqn{M_i} are individual \eqn{i}'s appendage length and
-body mass, \eqn{L_0} is an arbitrary reference mass, and \eqn{b} is the
+body mass, \eqn{M_0} is an arbitrary reference mass, and \eqn{b} is the
 allometric scaling exponent relating length to mass.
 }
 \examples{
 set.seed(1)
-d <- sim_allometric(n = 200, b_avg = 0.33)
+d <- sim_allometric(n = 200)
 
 # Isometric standardisation
 head(calc_sli(d, b_sli = 0.33))

@@ -2,55 +2,60 @@
 % Please edit documentation in R/simulate.R
 \name{build_cov_mat}
 \alias{build_cov_mat}
-\title{Log-scale covariance matrix for appendage, mass, and temperature}
+\title{Target covariance matrix for appendage, mass, and an optional gradient}
 \usage{
 build_cov_mat(
-  b_avg = 0.33,
-  r_am = 0.3,
-  r_at = -0.1,
-  r_mt = -0.1,
-  sd_log_morph = 0.07,
-  vary = c("mass", "append"),
-  sd_temp = 0.18
+  r_app_mass = NULL,
+  b_ols = NULL,
+  b_sma = NULL,
+  b_avg = NULL,
+  sd_log_append = NULL,
+  sd_log_mass = NULL,
+  gradient = NULL,
+  r_grad_app = 0,
+  r_grad_mass = 0
 )
 }
 \arguments{
-\item{b_avg}{Target average of the OLS and SMA slopes of log appendage on
-log mass. The default \code{0.33} corresponds to geometric similarity.}
+\item{r_app_mass}{Pearson correlation between \code{log(Append)} and \code{log(Mass)}.
+Must be non-zero.}
 
-\item{r_am, r_at, r_mt}{Pearson correlations on the log scale between
-appendage and mass, appendage and temperature, and mass and temperature.
-\code{r_am} must be non-zero.}
+\item{b_ols, b_sma, b_avg}{The OLS, SMA, and midpoint slopes of \code{log(Append)}
+on \code{log(Mass)}.}
 
-\item{sd_log_morph}{Standard deviation on the log scale of whichever
-morphological trait \code{vary} names. To reproduce a randomly drawn value, as
-opposed to a fixed one, pass e.g. \code{sd_log_morph = runif(1, 0.05, 0.09)}.}
+\item{sd_log_append, sd_log_mass}{Log-scale standard deviations.}
 
-\item{vary}{Which trait \code{sd_log_morph} refers to: \code{"mass"} (the default) or
-\code{"append"}. The other trait's standard deviation is derived from \code{b_avg}
-and \code{r_am}.}
+\item{gradient}{Optional string naming an environmental gradient (e.g.
+\code{"Temperature"}). \code{NULL} (the default) returns the 2x2 morphological block.}
 
-\item{sd_temp}{Standard deviation of temperature.}
+\item{r_grad_app, r_grad_mass}{Correlations of the gradient with
+\code{log(Append)} and \code{log(Mass)}. Ignored when \code{gradient} is \code{NULL}.}
 }
 \value{
-A 3 x 3 covariance matrix with dimnames \code{Append}, \code{Mass}, \code{Temp}.
+A covariance matrix, 2x2 with dimnames \code{Append}, \code{Mass}, or 3x3 with
+the gradient's name appended.
 }
 \description{
-Builds the 3 x 3 covariance matrix consumed by \code{\link[=sim_allometric]{sim_allometric()}}. The
-matrix is parameterised by a target allometric slope rather than by the two
-morphological standard deviations directly, because in practice one knows
-the scaling exponent and one trait's variability, not both variabilities.
+Assembles the log-scale covariance matrix implied by an allometry, optionally
+extended with an environmental gradient. The allometry is resolved by
+\code{\link[=implied_allometry]{implied_allometry()}}, so supply any three of \code{r_app_mass}, \code{b_ols}, \code{b_sma},
+\code{b_avg}, \code{sd_log_append}, \code{sd_log_mass}.
 }
 \details{
-\code{b_avg} is the mean of the OLS and SMA slopes of \code{log(Append)} on
-\code{log(Mass)}. Since \eqn{b_{SMA} = b_{OLS} / r}, fixing \code{b_avg} and \code{r_am}
-pins the OLS slope at
-\deqn{b_{OLS} = \frac{2\, b_{avg}\, r_{am}}{r_{am} + 1}}
-and hence the ratio of the two morphological standard deviations, since
-\eqn{b_{OLS} = r_{am}\, \sigma_A / \sigma_M}. \code{vary} chooses which of the
-two you supply through \code{sd_log_morph}; the other is solved for.
+The gradient always enters at \strong{unit standard deviation}. This matrix
+describes a correlation structure, not the gradient's units; \code{\link[=sim_allometric]{sim_allometric()}}
+rescales the drawn gradient afterwards. Consequently there is no
+\code{sd_gradient} argument here.
 }
 \examples{
-build_cov_mat(b_avg = 0.33, r_am = 0.5, r_at = -0.1, r_mt = -0.4)
+build_cov_mat(b_sma = 1/3, r_app_mass = 0.3, sd_log_mass = 0.07)
 
+build_cov_mat(
+  b_sma = 1/3, r_app_mass = 0.3, sd_log_mass = 0.07,
+  gradient = "Temperature", r_grad_app = -0.3, r_grad_mass = -0.1
+)
+
+}
+\seealso{
+\code{\link[=sim_allometric]{sim_allometric()}}, which draws from this structure.
 }

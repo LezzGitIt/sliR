@@ -37,18 +37,30 @@ cor_to_cov <- function(cor_mat, sds) {
   out
 }
 
-### Reject correlation matrices that no multivariate normal can realise, before MASS::mvrnorm fails cryptically.
+### Reject correlation matrices that no joint distribution can realise, before MASS::mvrnorm fails cryptically.
+# With a gradient the infeasible region is exactly the biologically interesting one: an appendage that lengthens while mass falls along the gradient cannot coexist with a strong positive appendage-mass correlation. Name that tension rather than reporting a bare determinant.
 check_pos_def <- function(cor_mat, call = rlang::caller_env()) {
   eig <- eigen(cor_mat, symmetric = TRUE, only.values = TRUE)$values
-  if (min(eig) <= 0) {
-    rlang::abort(
-      c("The requested correlation matrix is not positive definite.",
-        i = "No joint distribution has all of these pairwise correlations simultaneously.",
-        i = "Shrink the correlations toward zero, or make their signs mutually consistent."),
-      call = call
-    )
+  if (min(eig) > 0) return(invisible(cor_mat))
+
+  hint <- if (nrow(cor_mat) == 3L) {
+    grad <- colnames(cor_mat)[3]
+    c(i = paste0("`r_app_mass`, `r_grad_app`, and `r_grad_mass` must satisfy ",
+                 "1 - r_app_mass^2 - r_grad_app^2 - r_grad_mass^2 + ",
+                 "2*r_app_mass*r_grad_app*r_grad_mass > 0."),
+      i = paste0("Appendage and mass responding to ", grad,
+                 " in opposite directions is incompatible with a strong positive `r_app_mass`."),
+      i = "Weaken `r_app_mass`, or move `r_grad_app` and `r_grad_mass` closer together.")
+  } else {
+    c(i = "Shrink the correlations toward zero, or make their signs mutually consistent.")
   }
-  invisible(cor_mat)
+
+  rlang::abort(
+    c("The requested correlation matrix is not positive definite.",
+      i = "No joint distribution has all of these pairwise correlations simultaneously.",
+      hint),
+    call = call
+  )
 }
 
 ### Add independent measurement and transient (biological) error, each specified as a fraction of the variable's own standard deviation.

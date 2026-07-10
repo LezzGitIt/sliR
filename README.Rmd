@@ -1,5 +1,9 @@
 ---
-output: github_document
+output:
+  github_document:
+    html_preview: false
+bibliography: references.bib
+link-citations: true
 ---
 
 <!-- README.md is generated from README.Rmd. Please edit that file, then run rmarkdown::render("README.Rmd"). -->
@@ -16,21 +20,23 @@ knitr::opts_chunk$set(
 # sliR
 
 <!-- badges: start -->
+[![R-CMD-check](https://github.com/LezzGitIt/sliR/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/LezzGitIt/sliR/actions/workflows/R-CMD-check.yaml)
 <!-- badges: end -->
 
 sliR computes the **Standardized Length Index (SLI)**, a size correction for
 appendage lengths, and simulates allometric morphological data with a known
 scaling exponent, correlation structure, and error.
 
-The SLI adapts the scaled mass index of [Peig & Green
-(2009)](https://doi.org/10.1111/j.1600-0706.2009.17643.x). Where their index
-standardises *mass* to a reference *length*, the SLI standardises a *length* to
-a reference *mass*:
+The SLI adapts the scaled mass index of @peigNewPerspectivesEstimating2009.
+Where their index standardises *mass* to a reference *length*, the SLI
+standardises a *length* to a reference *mass*:
 
-$$SLI_i = A_i \left( \frac{L_0}{M_i} \right)^{b}$$
+$$SLI_i = A_i \left( \frac{M_0}{M_i} \right)^{b}$$
 
 for individual $i$ with appendage length $A_i$ and body mass $M_i$, an arbitrary
-reference mass $L_0$, and an allometric scaling exponent $b$.
+reference mass $M_0$, and an allometric scaling exponent $b$. The allometric
+scaling exponent is calculated using standardized major axis (SMA) regression,
+as recommended by @wartonSmatr3Package2012.
 
 ## Installation
 
@@ -42,20 +48,20 @@ remotes::install_github("LezzGitIt/sliR")
 ## Computing the SLI
 
 Simulate a set of individuals, then size-correct their appendage lengths under
-geometric similarity ($b = 1/3$, so linear dimensions scale with the cube root
+isometric scaling ($b = 1/3$, so linear dimensions scale with the cube root
 of mass).
 
 ```{r sli-basic}
 library(sliR)
 
 set.seed(1)
-birds <- sim_allometric(n = 500, b_avg = 0.33, r_am = 0.3)
+birds <- sim_allometric(n = 500, b_sma = 1/3, r_app_mass = 0.3)
 
 calc_sli(birds, b_sli = 0.33)
 ```
 
-`calc_sli()` appends a column and returns the rows in their original order, so
-it chains: several indices can sit side by side for comparison.
+`calc_sli()` appends a column and returns the rows in their original order. The function
+can be piped, creating several indices that sit side by side for comparison.
 
 ```{r sli-chain, message = FALSE}
 library(dplyr)
@@ -68,11 +74,12 @@ birds |>
   select(Append, Mass, sli_isometry, sli_estimated)
 ```
 
-$L_0$ is an arbitrary reference: changing it rescales every SLI by a constant,
-which changes the index's units but never the ranking of individuals or the
-result of any subsequent analysis. It defaults to the mean of `Mass`.
+$M_0$ is an arbitrary reference; changing it rescales every SLI by a constant. 
+The SLI maintains the units of the appendage $A$ and projects it along the line 
+implied by the scaling coefficient to the reference mass $M_0$. The ranking of 
+individuals will never change by changing $M_0$. $M_0$ defaults to the mean of `Mass`.
 
-If your columns are not named `Append` and `Mass`, name them yourself — the
+If your columns are not named `Append` and `Mass`, you can name them yourself — the
 arguments are unquoted:
 
 ```{r sli-nse}
@@ -83,7 +90,7 @@ calc_sli(lowercase, Append = wing, Mass = mass, b_sli = 0.33)
 ## Group-specific allometric slopes
 
 A single exponent for the whole sample assumes every group scales alike. When
-age or sex classes have their own allometry, pass them as `control` and each
+age or sex classes scale differently, pass them to `control` and each
 individual is corrected with their own group's SMA slope.
 
 ```{r slopes}
@@ -98,6 +105,10 @@ interacted with age, and mass interacted with sex — and averages their slopes
 per cell, rather than fitting a single age × sex interaction. That keeps each
 slope estimated at the marginal rather than the joint sample size.
 
+Averaging hides disagreement, so when a cell's per-variable slopes differ by more
+than `slope_diff_warn` (0.15 by default) you get a warning naming the cell with the largest discrepancy.
+Inspect the `b_sma_*` columns before trusting `b_sli_avg`.
+
 `calc_sli()` calls this for you. Individuals whose group is `NA` or unknown-coded
 receive `sli = NA` and keep their row.
 
@@ -108,7 +119,7 @@ calc_sli(birds, control = c("Age", "Sex")) |>
 
 Before trusting per-group slopes, check that each group *has* an allometric
 relationship to fit. A group whose mass and appendage length are uncorrelated
-yields a slope that is noise.
+yields a SMA slope that is noise.
 
 ```{r cor-tbl}
 build_group_cor_tbl(birds, control = c("Age", "Sex"))
@@ -116,19 +127,78 @@ build_group_cor_tbl(birds, control = c("Age", "Sex"))
 
 ## Simulating allometric data
 
-`sim_allometric()` draws from a multivariate log-normal whose covariance is
-built from a *target allometric slope* rather than from raw standard deviations.
-`b_avg` is the mean of the OLS and SMA slopes of log appendage on log mass:
+`sim_allometric()` draws from a bivariate log-normal specified by its allometry
+rather than by raw standard deviations. That allometry has only **two degrees of
+freedom**: any two of the correlation `r_app_mass` and the three slopes `b_ols`,
+`b_sma`, `b_avg` determine the other two. Supply two, or none to accept the
+isometric default `b_sma = 1/3, r_app_mass = 0.3`.
+
+The three slopes are not interchangeable. `b_ols` is the slope of
+$E[\log A \mid \log M]$, and so the *generative* slope an `lm()` recovers.
+`b_sma` is $\sigma_A / \sigma_M$, the slope an SMA fit returns and the exponent
+`calc_sli()` assumes. Note that there is no clear consensus regarding which line-fitting technique is best for allometric scaling and related applications. Thus, `b_avg` chooses the midpoint between  `b_ols` and  `b_sma`, which no estimator returns; it is a convention for splitting the difference. `implied_allometry()` shows what any parameter set implies:
+
+```{r implied}
+implied_allometry(b_sma = 1/3, r_app_mass = 0.3)
+```
 
 ```{r sim-check}
 set.seed(3)
-d <- sim_allometric(n = 2000, b_avg = 0.33, r_am = 0.3, trim_sd = NULL)
+d <- sim_allometric(n = 2000, b_sma = 1/3, r_app_mass = 0.3, trim_sd = NULL)
 
-b_ols <- coef(lm(Append_log ~ Mass_log, data = d))[[2]]
-b_sma <- coef(smatr::sma(Append_log ~ Mass_log, data = d))[["slope"]]
-
-c(b_ols = b_ols, b_sma = b_sma, b_avg = mean(c(b_ols, b_sma)))
+c(b_ols = coef(lm(Append_log ~ Mass_log, data = d))[[2]],
+  b_sma = coef(smatr::sma(Append_log ~ Mass_log, data = d))[["slope"]])
 ```
+
+### Simulating along an environmental gradient
+
+Pass `gradient` to add an environmental variable that both traits respond to,
+and give its correlation with each log trait. **The gradient is whatever you
+name it** — `"Temperature"`, `"Latitude"`, `"Year"`, `"Rainfall"`, `"Elevation"`,
+`"Aridity"` — the string simply becomes the column name. `gradient_range` then
+gives the units you want it expressed in. Omit `gradient_range` and you get a
+z-scored gradient (mean 0, SD 1).
+
+Because a gradient is a *sampling design* variable rather than a third trait, it
+is drawn uniformly by default, so `gradient_range` is honoured exactly and every
+part of the gradient is sampled equally.
+
+The gradient and allometry arguments compose freely: the allometry describes how
+appendage scales with mass, the gradient describes how each responds to the
+environment.
+
+```{r gradient}
+set.seed(4)
+gulls <- sim_allometric(
+  n = 2000,
+  # allometry: a shallower-than-isometric SMA slope, tightly correlated
+  b_sma = 0.28, r_app_mass = 0.6, sd_log_mass = 0.09,
+  # gradient: longer wings and heavier birds toward the poles
+  gradient = "Latitude", gradient_range = c(-90, 90),
+  r_grad_app = -0.3, r_grad_mass = 0.2,
+  trim_sd = NULL
+)
+
+range(gulls$Latitude)
+c(r_grad_app = cor(gulls$Latitude, gulls$Append_log),
+  b_sma      = coef(smatr::sma(Append_log ~ Mass_log, data = gulls))[["slope"]])
+```
+
+A normal gradient (`gradient_dist = "normal"`) reproduces the usual
+three-variable multivariate normal, but is unbounded — it will happily emit
+latitudes beyond $\pm 90$ — and leaves the extremes of the gradient nearly
+unsampled.
+
+Not every set of correlations is attainable. An appendage that lengthens while
+mass falls along the gradient is incompatible with a strong positive
+appendage–mass correlation, and `sim_allometric()` says so rather than quietly
+approximating.
+
+Note also that a correlation structure is **not** a causal structure. A gradient
+correlated with both traits cannot distinguish a direct effect on the appendage
+from an indirect one acting through body size.
+
+### Measurement and biological error
 
 Error comes in two flavours, each a fraction of the trait's own standard
 deviation. `meas_error` is observer error and hits both traits; `transient_error_*`
@@ -156,15 +226,13 @@ slope responds to correlation and to error on one trait but not the other.
 | Function | Purpose |
 |---|---|
 | `calc_sli()` | Standardized Length Index per individual |
-| `calc_lambda()` | Ratio of squared CVs; its square root approximates the SMA slope |
 | `build_sli_slopes_tbl()` | Per-group SMA allometric slopes |
 | `build_group_cor_tbl()` | Per-group diagnostic for whether allometry is meaningful |
-| `sim_allometric()` | Log-normal traits with a target allometric slope |
+| `sim_allometric()` | Log-normal traits with a target allometry, optionally along a gradient |
+| `implied_allometry()` | What a set of allometric parameters implies for the remaining parameters |
 | `sim_correlated()` | Raw-scale correlated appendage and mass |
 | `build_cov_mat()` | Log-scale covariance matrix behind `sim_allometric()` |
 
-## Reference
+## References
 
-Peig, J. & Green, A.J. (2009) New perspectives for estimating body condition
-from mass/length data: the scaled mass index as an alternative method. *Oikos*
-118, 1883–1891.
+<div id="refs"></div>

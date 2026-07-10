@@ -5,3 +5,6 @@
 ^\.claude$
 ^README\.Rmd$
 ^\.github$
+^references\.bib$
+^tools$
+^Derived$

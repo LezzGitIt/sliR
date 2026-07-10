@@ -30,8 +30,16 @@ check_control_types <- function(df, control, call = rlang::caller_env()) {
 #' Note the structure: with `control = c("Age", "Sex")` this fits **two**
 #' models — one interacting mass with age, one interacting mass with sex — and
 #' averages their slopes per age × sex cell. It does not fit a single
-#' age × sex interaction. That keeps the per-cell sample sizes at the marginal
-#' rather than the joint level, which matters when some cells are sparse.
+#' age × sex interaction (which is not possible in the smatr package). That
+#' keeps the per-cell sample sizes at the marginal rather than the joint level,
+#' which matters when some cells are sparse.
+#'
+#' The cost of that averaging is that a cell whose control variables disagree
+#' about the slope is collapsed to their midpoint, and nothing in `b_sli_avg`
+#' records the disagreement. `slope_diff_warn` guards against this: when any
+#' cell's per-variable slopes span more than that much, a warning names the
+#' worst cell and its spread. Inspect the `b_sma_<var>` columns before trusting
+#' `b_sli_avg`, and consider correcting on one control variable at a time.
 #'
 #' Rows whose `control` values are `NA` or match `unknown_codes` are excluded
 #' from slope fitting and from the returned table.
@@ -39,6 +47,10 @@ check_control_types <- function(df, control, call = rlang::caller_env()) {
 #' @inheritParams calc_sli
 #' @param control Character vector of grouping columns. Each must be character
 #'   or factor.
+#' @param slope_diff_warn Warn when the per-variable SMA slopes being averaged
+#'   within a cell span more than this. Defaults to `0.15`, roughly half the
+#'   isometric exponent. `NULL` or `Inf` disables the check. Has no effect with
+#'   a single `control` variable, where nothing is averaged.
 #'
 #' @return A tibble with one row per observed combination of `control` levels:
 #'   the control columns, `n` (rows contributing to that cell), one
@@ -60,7 +72,8 @@ build_sli_slopes_tbl <- function(df,
                                  Append = Append,
                                  Mass = Mass,
                                  control,
-                                 unknown_codes = c("Unk", "U", "Unknown")) {
+                                 unknown_codes = c("Unk", "U", "Unknown"),
+                                 slope_diff_warn = 0.15) {
   app_nm  <- rlang::as_label(rlang::enquo(Append))
   mass_nm <- rlang::as_label(rlang::enquo(Mass))
   check_cols(df, c(app_nm, mass_nm, control))
@@ -94,10 +107,46 @@ build_sli_slopes_tbl <- function(df,
   }
 
   slope_cols <- paste0("b_sma_", control)
-  dplyr::mutate(
+  slopes_tbl <- dplyr::mutate(
     slopes_tbl,
     b_sli_avg = rowMeans(dplyr::across(dplyr::all_of(slope_cols)), na.rm = FALSE)
   )
+  warn_slope_spread(slopes_tbl, control, slope_cols, slope_diff_warn)
+  slopes_tbl
+}
+
+
+### Averaging hides disagreement: a cell whose Age slope is 0.30 and Sex slope 0.60 gets b_sli_avg = 0.45, a value neither control variable supports. Surface the widest such cell rather than letting it pass silently.
+warn_slope_spread <- function(slopes_tbl, control, slope_cols, tol) {
+  if (length(control) < 2 || is.null(tol) || is.infinite(tol)) return(invisible(NULL))
+
+  slope_mat <- as.matrix(slopes_tbl[slope_cols])
+  spread    <- apply(slope_mat, 1, \(x) if (anyNA(x)) NA_real_ else max(x) - min(x))
+  if (all(is.na(spread)) || max(spread, na.rm = TRUE) <= tol) return(invisible(NULL))
+
+  n_bad <- sum(spread > tol, na.rm = TRUE)
+  worst <- which.max(spread)
+  cell  <- paste(
+    purrr::map_chr(control, \(v) paste0(v, " = ", as.character(slopes_tbl[[v]][worst]))),
+    collapse = ", "
+  )
+  slopes <- paste(
+    purrr::map_chr(slope_cols, \(cl) paste0(cl, " = ", format(round(slopes_tbl[[cl]][worst], 3), nsmall = 3))),
+    collapse = ", "
+  )
+
+  rlang::warn(c(
+    paste0(n_bad, " of ", nrow(slopes_tbl), " group",
+           if (nrow(slopes_tbl) > 1) "s" else "",
+           " average SMA slopes that differ by more than ", tol, "."),
+    i = paste0("Widest (", cell, "): ", slopes,
+               "; spread = ", format(round(spread[worst], 3), nsmall = 3),
+               ", averaged to b_sli_avg = ",
+               format(round(slopes_tbl$b_sli_avg[worst], 3), nsmall = 3), "."),
+    i = "`b_sli_avg` is a midpoint neither control variable supports. Inspect the `b_sma_*` columns, or correct on one control variable at a time.",
+    i = "Raise `slope_diff_warn`, or set it to `NULL`, to silence this."
+  ))
+  invisible(NULL)
 }
 
 
@@ -106,9 +155,8 @@ build_sli_slopes_tbl <- function(df,
 #' Reports, for each combination of `control` levels, the OLS regression of
 #' mass on appendage length together with its correlation and p-value. Use it
 #' before [calc_sli()]`(control = ...)`: a group whose mass and appendage
-#' length are uncorrelated has no meaningful allometric relationship, so the
-#' SMA slope fitted to it is noise and should not be used to size-correct its
-#' members.
+#' length are uncorrelated has no meaningful SMA slope, and should not be used to
+#' size-correct its members.
 #'
 #' @inheritParams build_sli_slopes_tbl
 #'

@@ -40,6 +40,45 @@ test_that("build_sli_slopes_tbl rejects a numeric grouping column", {
   expect_error(build_sli_slopes_tbl(d, control = "grp"), "character or factor")
 })
 
+test_that("averaging slopes that disagree by more than slope_diff_warn warns", {
+  d <- make_divergent_slopes()
+  expect_warning(build_sli_slopes_tbl(d, control = c("Age", "Sex")), "differ by more than 0.15")
+
+  w <- tryCatch(build_sli_slopes_tbl(d, control = c("Age", "Sex")),
+                warning = \(w) conditionMessage(w))
+  # The message must name the offending cell and both slopes, not just complain.
+  expect_match(w, "Age = ")
+  expect_match(w, "b_sma_Age = ")
+  expect_match(w, "b_sma_Sex = ")
+  expect_match(w, "spread = ")
+})
+
+test_that("the warning is silenced by slope_diff_warn = NULL or Inf, and by raising it", {
+  d <- make_divergent_slopes()
+  expect_no_warning(build_sli_slopes_tbl(d, control = c("Age", "Sex"), slope_diff_warn = NULL))
+  expect_no_warning(build_sli_slopes_tbl(d, control = c("Age", "Sex"), slope_diff_warn = Inf))
+  expect_no_warning(build_sli_slopes_tbl(d, control = c("Age", "Sex"), slope_diff_warn = 5))
+})
+
+test_that("concordant slopes do not warn, and a single control never warns", {
+  expect_no_warning(build_sli_slopes_tbl(make_concordant_slopes(), control = c("Age", "Sex")))
+  # Nothing is averaged with one control variable, so there is no spread to report.
+  expect_no_warning(build_sli_slopes_tbl(make_divergent_slopes(), control = "Age"))
+})
+
+test_that("the warning does not alter the returned table", {
+  d <- make_divergent_slopes()
+  warned <- suppressWarnings(build_sli_slopes_tbl(d, control = c("Age", "Sex")))
+  quiet  <- build_sli_slopes_tbl(d, control = c("Age", "Sex"), slope_diff_warn = NULL)
+  expect_equal(warned, quiet)
+})
+
+test_that("a cell with an NA slope is skipped by the spread check rather than erroring", {
+  d <- make_divergent_slopes()
+  d$Age[d$Age == "Juv"][1:5] <- NA
+  expect_no_error(suppressWarnings(build_sli_slopes_tbl(d, control = c("Age", "Sex"))))
+})
+
 test_that("calc_sli(control=) assigns each row its group's averaged slope", {
   d      <- make_grouped()
   slopes <- build_sli_slopes_tbl(d, control = "Sex")

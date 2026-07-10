@@ -9,7 +9,8 @@ build_sli_slopes_tbl(
   Append = Append,
   Mass = Mass,
   control,
-  unknown_codes = c("Unk", "U", "Unknown")
+  unknown_codes = c("Unk", "U", "Unknown"),
+  slope_diff_warn = 0.15
 )
 }
 \arguments{
@@ -24,6 +25,11 @@ or factor.}
 
 \item{unknown_codes}{Values in the \code{control} columns that mark an unknown
 group and so cannot be assigned a slope.}
+
+\item{slope_diff_warn}{Warn when the per-variable SMA slopes being averaged
+within a cell span more than this. Defaults to \code{0.15}, roughly half the
+isometric exponent. \code{NULL} or \code{Inf} disables the check. Has no effect with
+a single \code{control} variable, where nothing is averaged.}
 }
 \value{
 A tibble with one row per observed combination of \code{control} levels:
@@ -42,8 +48,16 @@ receives \code{b_sli_avg}, the mean of the slopes its levels attract.
 Note the structure: with \code{control = c("Age", "Sex")} this fits \strong{two}
 models — one interacting mass with age, one interacting mass with sex — and
 averages their slopes per age × sex cell. It does not fit a single
-age × sex interaction. That keeps the per-cell sample sizes at the marginal
-rather than the joint level, which matters when some cells are sparse.
+age × sex interaction (which is not possible in the smatr package). That
+keeps the per-cell sample sizes at the marginal rather than the joint level,
+which matters when some cells are sparse.
+
+The cost of that averaging is that a cell whose control variables disagree
+about the slope is collapsed to their midpoint, and nothing in \code{b_sli_avg}
+records the disagreement. \code{slope_diff_warn} guards against this: when any
+cell's per-variable slopes span more than that much, a warning names the
+worst cell and its spread. Inspect the \verb{b_sma_<var>} columns before trusting
+\code{b_sli_avg}, and consider correcting on one control variable at a time.
 
 Rows whose \code{control} values are \code{NA} or match \code{unknown_codes} are excluded
 from slope fitting and from the returned table.

@@ -18,11 +18,17 @@ test_that("calc_sli preserves input row order by default and sorts on request", 
   expect_identical(sorted$sli, sort(sorted$sli, decreasing = TRUE))
 })
 
-test_that("L0 rescales SLI by a constant and leaves rankings untouched", {
+test_that("M0 rescales SLI by a constant and leaves rankings untouched", {
   default <- calc_sli(toy, b_sli = 0.33)$sli
-  custom  <- calc_sli(toy, b_sli = 0.33, L0 = 1000)$sli
+  custom  <- calc_sli(toy, b_sli = 0.33, M0 = 1000)$sli
   expect_identical(rank(default), rank(custom))
   expect_equal(sd(custom / default), 0)
+})
+
+test_that("the reference mass is named M0, not L0", {
+  expect_error(calc_sli(toy, b_sli = 0.33, L0 = 1000))
+  expect_true("M0" %in% names(formals(calc_sli)))
+  expect_false("L0" %in% names(formals(calc_sli)))
 })
 
 test_that("b_sli = 0 makes SLI the untransformed appendage length", {
@@ -49,9 +55,9 @@ test_that("calc_sli errors informatively when the defaulted columns are absent",
   expect_no_error(calc_sli(lower, Append = wing, Mass = mass))
 })
 
-test_that("calc_sli rejects a malformed rename_col and a non-scalar L0", {
+test_that("calc_sli rejects a malformed rename_col and a non-scalar M0", {
   expect_error(calc_sli(toy, rename_col = c("a", "b")), "single string")
-  expect_error(calc_sli(toy, L0 = c(1, 2)), "single number")
+  expect_error(calc_sli(toy, M0 = c(1, 2)), "single number")
 })
 
 test_that("calc_sli warns that b_sli is ignored once control is supplied", {
@@ -60,16 +66,8 @@ test_that("calc_sli warns that b_sli is ignored once control is supplied", {
   expect_warning(calc_sli(d, b_sli = 0.4, control = "Sex"), "ignored")
 })
 
-test_that("calc_lambda returns the ratio of squared CVs", {
-  x <- c(1, 2, 3, 4, 5)
-  y <- c(2, 4, 6, 8, 10)
-  expect_equal(calc_lambda(x, y), (sd(y) / mean(y))^2 / ((sd(x) / mean(x))^2))
-  # y is a rescaling of x, so the CVs match and lambda is 1
-  expect_equal(calc_lambda(x, y), 1)
-})
-
-test_that("calc_lambda honours na.rm", {
-  x <- c(1, 2, 3, NA)
-  expect_true(is.na(calc_lambda(x, x)))
-  expect_equal(calc_lambda(x, x, na.rm = TRUE), 1)
+test_that("calc_sli forwards slope_diff_warn to build_sli_slopes_tbl", {
+  d <- make_divergent_slopes()
+  expect_warning(calc_sli(d, control = c("Age", "Sex")), "differ by more than")
+  expect_no_warning(calc_sli(d, control = c("Age", "Sex"), slope_diff_warn = NULL))
 })

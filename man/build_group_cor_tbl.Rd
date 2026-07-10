@@ -34,9 +34,8 @@ the control columns, \code{n}, \code{b_ols} (slope of mass on appendage), \code{
 Reports, for each combination of \code{control} levels, the OLS regression of
 mass on appendage length together with its correlation and p-value. Use it
 before \code{\link[=calc_sli]{calc_sli()}}\code{(control = ...)}: a group whose mass and appendage
-length are uncorrelated has no meaningful allometric relationship, so the
-SMA slope fitted to it is noise and should not be used to size-correct its
-members.
+length are uncorrelated has no meaningful SMA slope, and should not be used to
+size-correct its members.
 }
 \examples{
 set.seed(1)

@@ -26,14 +26,15 @@ sim_correlated(
 
 \item{sd_append, sd_mass}{Standard deviations of the two traits.}
 
-\item{meas_error}{Measurement error, as a fraction of each trait's standard
+\item{meas_error}{Observer error, as a fraction of each trait's standard
 deviation. Applied to both traits.}
 
-\item{transient_error_mass, transient_error_append}{Biological fluctuation,
-as a fraction of that trait's standard deviation.}
+\item{transient_error_append, transient_error_mass}{Biological fluctuation, as
+a fraction of that trait's standard deviation.}
 
-\item{empirical}{If \code{TRUE} (the default), the sample has exactly the
-specified moments before error is added.}
+\item{empirical}{If \code{TRUE} (the default), the drawn sample has exactly the
+requested moments and correlations, rather than being a random draw from a
+population with them. Trimming and error break this guarantee.}
 }
 \value{
 A tibble of \code{n} rows with columns \code{Append} and \code{Mass}.
@@ -42,9 +43,9 @@ A tibble of \code{n} rows with columns \code{Append} and \code{Mass}.
 Draws a bivariate normal pair of appendage length and body mass with a given
 correlation, then optionally perturbs each with measurement error and
 transient biological fluctuation. Unlike \code{\link[=sim_allometric]{sim_allometric()}} there is no log
-transform and no allometric target: this is the tool for building intuition
-about how a fitted slope responds to correlation and to error added on one
-trait but not the other.
+transform, no allometric target, and no gradient: this is the tool for
+building intuition about how a fitted slope responds to correlation and to
+error added on one trait but not the other.
 }
 \examples{
 set.seed(1)

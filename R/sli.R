@@ -7,10 +7,10 @@
 #' Whereas their index standardises *mass* to a reference *length*, the SLI
 #' standardises a *length* to a reference *mass*:
 #'
-#' \deqn{SLI_i = A_i \left( \frac{L_0}{M_i} \right)^{b}}
+#' \deqn{SLI_i = A_i \left( \frac{M_0}{M_i} \right)^{b}}
 #'
 #' where \eqn{A_i} and \eqn{M_i} are individual \eqn{i}'s appendage length and
-#' body mass, \eqn{L_0} is an arbitrary reference mass, and \eqn{b} is the
+#' body mass, \eqn{M_0} is an arbitrary reference mass, and \eqn{b} is the
 #' allometric scaling exponent relating length to mass.
 #'
 #' @param df A data frame of individual measurements.
@@ -19,14 +19,15 @@
 #'   columns are named otherwise, pass them explicitly (e.g. `Append = wing,
 #'   Mass = mass`); an informative error is raised if the columns are absent.
 #' @param b_sli Scalar allometric scaling exponent. The default `0.33`
-#'   (\eqn{\approx 1/3}) assumes geometric similarity, under which linear
+#'   (\eqn{\approx 1/3}) assumes isometry, under which linear
 #'   dimensions scale with the cube root of mass. Ignored when `control` is
 #'   supplied. Set it to an empirically estimated SMA slope to relax isometry.
-#' @param L0 Reference mass to which all individuals are standardised. `NULL`
-#'   (the default) uses the mean of `Mass`. Peig & Green treat \eqn{L_0} as an
-#'   arbitrary scalar: it rescales every SLI value by a constant factor and so
-#'   changes the units of the index, never the ranking of individuals or the
-#'   result of any subsequent location-invariant analysis.
+#' @param M0 Reference mass to which all individuals are standardised. `NULL`
+#'   (the default) uses the mean of `Mass`. \eqn{M_0} is an arbitrary scalar: it
+#'   rescales every SLI value by a constant factor and so changes the units of
+#'   the index, never the ranking of individuals or the result of any subsequent
+#'   location-invariant analysis. (Peig & Green call this \eqn{L_0}, because
+#'   their index standardises to a reference *length*; the SLI inverts that.)
 #' @param control Optional character vector of grouping columns (e.g.
 #'   `c("Age", "Sex")`). When supplied, `build_sli_slopes_tbl()` estimates a
 #'   separate SMA slope per group and each individual receives their group's
@@ -34,6 +35,9 @@
 #'   `NA` or match `unknown_codes` receive `sli = NA`.
 #' @param unknown_codes Values in the `control` columns that mark an unknown
 #'   group and so cannot be assigned a slope.
+#' @param slope_diff_warn Passed to [build_sli_slopes_tbl()]. Warn when the
+#'   per-variable SMA slopes averaged within a group differ by more than this.
+#'   Only relevant with two or more `control` variables.
 #' @param rename_col Optional string naming the output column. `NULL` (the
 #'   default) leaves it as `sli`.
 #' @param sort If `TRUE`, return rows sorted by descending SLI. Defaults to
@@ -51,7 +55,7 @@
 #'
 #' @examples
 #' set.seed(1)
-#' d <- sim_allometric(n = 200, b_avg = 0.33)
+#' d <- sim_allometric(n = 200)
 #'
 #' # Isometric standardisation
 #' head(calc_sli(d, b_sli = 0.33))
@@ -67,9 +71,10 @@ calc_sli <- function(df,
                      Append = Append,
                      Mass = Mass,
                      b_sli = 0.33,
-                     L0 = NULL,
+                     M0 = NULL,
                      control = NULL,
                      unknown_codes = c("Unk", "U", "Unknown"),
+                     slope_diff_warn = 0.15,
                      rename_col = NULL,
                      sort = FALSE) {
   app_q   <- rlang::enquo(Append)
@@ -85,57 +90,30 @@ calc_sli <- function(df,
     rlang::warn("`b_sli` is ignored when `control` is supplied; per-group SMA slopes are used instead.")
   }
 
-  ## L0 is a scalar reference mass, not a column: injected with `!!` so a column of the same name cannot shadow it.
-  if (is.null(L0)) L0 <- mean(df[[mass_nm]], na.rm = TRUE)
-  if (!rlang::is_scalar_double(L0) && !rlang::is_scalar_integer(L0)) {
-    rlang::abort("`L0` must be a single number or `NULL`.")
+  ## M0 is a scalar reference mass, not a column: injected with `!!` so a column of the same name cannot shadow it.
+  if (is.null(M0)) M0 <- mean(df[[mass_nm]], na.rm = TRUE)
+  if (!rlang::is_scalar_double(M0) && !rlang::is_scalar_integer(M0)) {
+    rlang::abort("`M0` must be a single number or `NULL`.")
   }
 
   if (is.null(control)) {
-    df_sli <- dplyr::mutate(df, sli = {{ Append }} * (!!L0 / {{ Mass }})^(!!b_sli))
+    df_sli <- dplyr::mutate(df, sli = {{ Append }} * (!!M0 / {{ Mass }})^(!!b_sli))
   } else {
     slopes_tbl <- build_sli_slopes_tbl(
       df, Append = !!app_q, Mass = !!mass_q,
-      control = control, unknown_codes = unknown_codes
+      control = control, unknown_codes = unknown_codes,
+      slope_diff_warn = slope_diff_warn
     )
     df_sli <- df |>
       dplyr::left_join(
         dplyr::select(slopes_tbl, dplyr::all_of(control), "b_sli_avg"),
         by = control
       ) |>
-      dplyr::mutate(sli = {{ Append }} * (!!L0 / {{ Mass }})^.data$b_sli_avg) |>
+      dplyr::mutate(sli = {{ Append }} * (!!M0 / {{ Mass }})^.data$b_sli_avg) |>
       dplyr::select(-"b_sli_avg")
   }
 
   if (sort) df_sli <- dplyr::arrange(df_sli, dplyr::desc(sli))
   if (!is.null(rename_col)) df_sli <- dplyr::rename(df_sli, !!rename_col := sli)
   df_sli
-}
-
-
-#' Ratio of squared coefficients of variation
-#'
-#' Computes \eqn{\lambda = CV(y)^2 / CV(x)^2}, the empirical coefficient
-#' relating the variance of two traits on the log scale. With `x` a body mass
-#' and `y` an appendage length, \eqn{\sqrt{\lambda}} is the standardised major
-#' axis (SMA) slope, so `calc_lambda()` gives a quick moment-based check on a
-#' fitted allometric exponent without fitting a model.
-#'
-#' @param x,y Numeric vectors of equal length. Both must be strictly positive
-#'   for the coefficient of variation to be meaningful.
-#' @param na.rm Drop missing values before computing means and standard
-#'   deviations.
-#'
-#' @return A single numeric value.
-#'
-#' @examples
-#' set.seed(1)
-#' d <- sim_allometric(n = 500, b_avg = 0.33)
-#' calc_lambda(x = d$Mass, y = d$Append)
-#'
-#' @export
-calc_lambda <- function(x, y, na.rm = FALSE) {
-  cv_x <- stats::sd(x, na.rm = na.rm) / mean(x, na.rm = na.rm)
-  cv_y <- stats::sd(y, na.rm = na.rm) / mean(y, na.rm = na.rm)
-  (cv_y^2) / (cv_x^2)
 }

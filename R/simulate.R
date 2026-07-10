@@ -1,165 +1,303 @@
 # Simulating allometric data ----
 
-#' Log-scale covariance matrix for appendage, mass, and temperature
+#' Target covariance matrix for appendage, mass, and an optional gradient
 #'
-#' Builds the 3 x 3 covariance matrix consumed by [sim_allometric()]. The
-#' matrix is parameterised by a target allometric slope rather than by the two
-#' morphological standard deviations directly, because in practice one knows
-#' the scaling exponent and one trait's variability, not both variabilities.
+#' Assembles the log-scale covariance matrix implied by an allometry, optionally
+#' extended with an environmental gradient. The allometry is resolved by
+#' [implied_allometry()], so supply any three of `r_app_mass`, `b_ols`, `b_sma`,
+#' `b_avg`, `sd_log_append`, `sd_log_mass`.
 #'
-#' `b_avg` is the mean of the OLS and SMA slopes of `log(Append)` on
-#' `log(Mass)`. Since \eqn{b_{SMA} = b_{OLS} / r}, fixing `b_avg` and `r_am`
-#' pins the OLS slope at
-#' \deqn{b_{OLS} = \frac{2\, b_{avg}\, r_{am}}{r_{am} + 1}}
-#' and hence the ratio of the two morphological standard deviations, since
-#' \eqn{b_{OLS} = r_{am}\, \sigma_A / \sigma_M}. `vary` chooses which of the
-#' two you supply through `sd_log_morph`; the other is solved for.
+#' The gradient always enters at **unit standard deviation**. This matrix
+#' describes a correlation structure, not the gradient's units; [sim_allometric()]
+#' rescales the drawn gradient afterwards. Consequently there is no
+#' `sd_gradient` argument here.
 #'
-#' @param b_avg Target average of the OLS and SMA slopes of log appendage on
-#'   log mass. The default `0.33` corresponds to geometric similarity.
-#' @param r_am,r_at,r_mt Pearson correlations on the log scale between
-#'   appendage and mass, appendage and temperature, and mass and temperature.
-#'   `r_am` must be non-zero.
-#' @param sd_log_morph Standard deviation on the log scale of whichever
-#'   morphological trait `vary` names. To reproduce a randomly drawn value, as
-#'   opposed to a fixed one, pass e.g. `sd_log_morph = runif(1, 0.05, 0.09)`.
-#' @param vary Which trait `sd_log_morph` refers to: `"mass"` (the default) or
-#'   `"append"`. The other trait's standard deviation is derived from `b_avg`
-#'   and `r_am`.
-#' @param sd_temp Standard deviation of temperature.
+#' @inheritParams implied_allometry
+#' @param gradient Optional string naming an environmental gradient (e.g.
+#'   `"Temperature"`). `NULL` (the default) returns the 2x2 morphological block.
+#' @param r_grad_app,r_grad_mass Correlations of the gradient with
+#'   `log(Append)` and `log(Mass)`. Ignored when `gradient` is `NULL`.
 #'
-#' @return A 3 x 3 covariance matrix with dimnames `Append`, `Mass`, `Temp`.
+#' @return A covariance matrix, 2x2 with dimnames `Append`, `Mass`, or 3x3 with
+#'   the gradient's name appended.
+#'
+#' @seealso [sim_allometric()], which draws from this structure.
 #'
 #' @examples
-#' build_cov_mat(b_avg = 0.33, r_am = 0.5, r_at = -0.1, r_mt = -0.4)
+#' build_cov_mat(b_sma = 1/3, r_app_mass = 0.3, sd_log_mass = 0.07)
+#'
+#' build_cov_mat(
+#'   b_sma = 1/3, r_app_mass = 0.3, sd_log_mass = 0.07,
+#'   gradient = "Temperature", r_grad_app = -0.3, r_grad_mass = -0.1
+#' )
 #'
 #' @export
-build_cov_mat <- function(b_avg = 0.33,
-                          r_am = 0.3,
-                          r_at = -0.1,
-                          r_mt = -0.1,
-                          sd_log_morph = 0.07,
-                          vary = c("mass", "append"),
-                          sd_temp = 0.18) {
-  vary <- match.arg(vary)
-  if (isTRUE(all.equal(r_am, 0))) {
-    rlang::abort("`r_am` must be non-zero: with no mass-appendage correlation the allometric slope is undefined.")
+build_cov_mat <- function(r_app_mass = NULL, b_ols = NULL, b_sma = NULL, b_avg = NULL,
+                          sd_log_append = NULL, sd_log_mass = NULL,
+                          gradient = NULL, r_grad_app = 0, r_grad_mass = 0) {
+  parms <- solve_allometry(
+    r_app_mass = r_app_mass, b_ols = b_ols, b_sma = b_sma, b_avg = b_avg,
+    sd_log_append = sd_log_append, sd_log_mass = sd_log_mass
+  )
+
+  if (is.null(gradient)) {
+    vars <- c("Append", "Mass")
+    cor_mat <- matrix(c(1, parms$r_app_mass, parms$r_app_mass, 1),
+                      nrow = 2, dimnames = list(vars, vars))
+    check_pos_def(cor_mat)
+    return(cor_to_cov(cor_mat, c(parms$sd_log_append, parms$sd_log_mass)))
   }
 
-  b_ols <- (2 * b_avg * r_am) / (r_am + 1)
-  if (vary == "append" && isTRUE(all.equal(b_ols, 0))) {
-    rlang::abort("`b_avg` must be non-zero when `vary = \"append\"`, otherwise mass has no implied variance.")
-  }
-
-  if (vary == "mass") {
-    sd_log_mass   <- sd_log_morph
-    sd_log_append <- abs(b_ols / r_am * sd_log_mass)
-  } else {
-    sd_log_append <- sd_log_morph
-    sd_log_mass   <- abs(r_am / b_ols * sd_log_append)
-  }
-
-  vars   <- c("Append", "Mass", "Temp")
+  check_gradient_name(gradient)
+  vars <- c("Append", "Mass", gradient)
   cor_mat <- matrix(
-    c(1,    r_am, r_at,
-      r_am, 1,    r_mt,
-      r_at, r_mt, 1),
+    c(1,            parms$r_app_mass, r_grad_app,
+      parms$r_app_mass, 1,            r_grad_mass,
+      r_grad_app,   r_grad_mass,      1),
     nrow = 3, byrow = TRUE, dimnames = list(vars, vars)
   )
   check_pos_def(cor_mat)
-
-  cor_to_cov(cor_mat, c(sd_log_append, sd_log_mass, sd_temp))
+  cor_to_cov(cor_mat, c(parms$sd_log_append, parms$sd_log_mass, 1))
 }
 
 
-#' Simulate log-normal morphological data with a target allometric slope
+### A gradient name becomes a column name, so it must be a single usable string that does not collide with the morphological columns.
+check_gradient_name <- function(gradient, call = rlang::caller_env()) {
+  if (!rlang::is_string(gradient) || !nzchar(gradient)) {
+    rlang::abort("`gradient` must be a single non-empty string naming the gradient column, or `NULL`.", call = call)
+  }
+  if (gradient %in% c("Append", "Mass", "Append_log", "Mass_log")) {
+    rlang::abort(paste0("`gradient` cannot be named `", gradient, "`; that column already exists."), call = call)
+  }
+  invisible(gradient)
+}
+
+### Resolve the gradient's location and spread from either `gradient_range` (its bounds) or an explicit mean and SD, refusing to accept both.
+resolve_gradient_scale <- function(gradient_range, mean_gradient, sd_gradient,
+                                   gradient_dist, scale_supplied, call) {
+  if (is.null(gradient_range)) return(list(mean = mean_gradient, sd = sd_gradient))
+
+  if (scale_supplied) {
+    rlang::abort(
+      c("Supply either `gradient_range` or `mean_gradient`/`sd_gradient`, not both.",
+        i = "`gradient_range` already determines the mean and standard deviation."),
+      call = call
+    )
+  }
+  if (gradient_dist != "uniform") {
+    rlang::abort(
+      c("`gradient_range` requires `gradient_dist = \"uniform\"`.",
+        i = "A normal gradient is unbounded, so it has no range."),
+      call = call
+    )
+  }
+  if (!is.numeric(gradient_range) || length(gradient_range) != 2L ||
+      anyNA(gradient_range) || gradient_range[1] >= gradient_range[2]) {
+    rlang::abort("`gradient_range` must be two increasing numbers, e.g. `c(1970, 2026)`.", call = call)
+  }
+  list(
+    mean = mean(gradient_range),
+    sd   = diff(gradient_range) / sqrt(12)   # SD of Uniform(a, b)
+  )
+}
+
+### Draw the standardised gradient. Uniform on +/-sqrt(3) has mean 0 and SD 1, matching the standard normal, so the two marginals are interchangeable in the construction below.
+# Exact correlations require the drawn gradient to have sample variance exactly 1, which forces a z-score. Z-scoring an iid uniform draw inflates its extremes past +/-sqrt(3), so `gradient_range = c(-90, 90)` would emit latitudes beyond +/-90. A systematic sample is exactly symmetric, so its z-score stays strictly inside sqrt(3)*sqrt((n-1)/(n+1)) < sqrt(3), and bounds hold. Order is shuffled so no row position carries gradient information.
+draw_gradient <- function(n, gradient_dist, empirical) {
+  if (!empirical) {
+    return(switch(
+      gradient_dist,
+      uniform = stats::runif(n, -sqrt(3), sqrt(3)),
+      normal  = stats::rnorm(n)
+    ))
+  }
+  if (gradient_dist == "uniform") {
+    g <- stats::qunif(stats::ppoints(n), -sqrt(3), sqrt(3))
+    return(sample((g - mean(g)) / stats::sd(g)))
+  }
+  g <- stats::rnorm(n)
+  (g - mean(g)) / stats::sd(g)
+}
+
+### Draw residuals with an exact target covariance that are also exactly orthogonal to the gradient. Residualising against `g` removes any chance correlation; whitening then re-imposes the target covariance on the residualised columns, which remain orthogonal to `g` because each is a linear combination of columns that already were.
+draw_residuals <- function(n, rho_e, g, empirical) {
+  sigma_e <- matrix(c(1, rho_e, rho_e, 1), nrow = 2)
+  e <- MASS::mvrnorm(n, mu = c(0, 0), Sigma = sigma_e, empirical = empirical)
+  if (!empirical) return(e)
+
+  e <- stats::residuals(stats::lm(e ~ g))
+  e %*% solve(chol(stats::cov(e))) %*% chol(sigma_e)
+}
+
+
+#' Simulate log-normal morphology, optionally along an environmental gradient
 #'
-#' Draws appendage length, body mass, and temperature from a multivariate
-#' normal on the log scale (temperature stays on its natural scale), then
-#' exponentiates the morphological traits. The covariance structure comes from
-#' [build_cov_mat()], so the realised allometric slope matches `b_avg` up to
-#' the distortion introduced by trimming and by any error you add.
+#' Draws appendage length and body mass from a bivariate log-normal with a
+#' specified allometry, and optionally an exogenous environmental gradient
+#' (temperature, latitude, year, rainfall) that both traits respond to linearly.
 #'
-#' Error is added on the raw scale, after exponentiation, and each component is
-#' expressed as a fraction of the trait's own standard deviation. The two
-#' components are statistically identical draws with different interpretations:
-#' `meas_error` is observer error, applied to both traits alike, while
-#' `transient_error_*` represents real short-term biological fluctuation, which
-#' typically afflicts mass far more than a skeletal appendage.
+#' The allometry is resolved by [implied_allometry()]. Supply **two** of
+#' `r_app_mass`, `b_ols`, `b_sma`, `b_avg`, or none to accept the isometric
+#' default `b_sma = 1/3, r_app_mass = 0.3`. Supplying exactly one is an error.
+#' `sd_log_append` and `sd_log_mass` set the scale and default to
+#' `sd_log_mass = 0.07`; they leave every slope and correlation unchanged.
 #'
-#' @param n Number of individuals to draw, before trimming.
+#' @section The gradient:
+#' The gradient is a **sampling design variable**, not a third trait, so it is
+#' drawn exogenously and the log traits are built linearly from it. Its marginal
+#' is therefore free, and it defaults to `"uniform"` because:
+#'
+#' - **it is bounded**, so `gradient_range = c(-90, 90)` really does yield
+#'   latitudes within \eqn{\pm 90}, and years stay inside their range;
+#' - **it covers the gradient evenly.** Across 15 equal-width bins a normal
+#'   gradient leaves the extreme bins nearly empty, with the fullest bin
+#'   thousands of times the emptiest; a uniform one is flat.
+#'
+#' `gradient_dist = "normal"` recovers the ordinary three-variable multivariate
+#' normal. Either way `r_grad_app` is the correlation of the gradient with
+#' `log(Append)` (not with `Append`), and \eqn{E[\log A \mid G]} is linear in
+#' \eqn{G} by construction.
+#'
+#' Not every set of correlations is attainable. An appendage that lengthens
+#' while mass falls along the gradient is incompatible with a strong positive
+#' appendage-mass correlation, and such a request is rejected rather than
+#' silently approximated.
+#'
+#' @section Error:
+#' Error is added on the raw scale, after exponentiation, each component a
+#' fraction of the trait's own standard deviation. `meas_error` is observer
+#' error and applies to both traits alike; `transient_error_*` represents real
+#' short-term biological fluctuation, which afflicts mass far more than a
+#' skeletal appendage.
+#'
 #' @inheritParams build_cov_mat
-#' @param mean_mass,mean_append Means of mass and appendage length on the raw
-#'   scale; used as the log-scale location via `log()`.
-#' @param mean_temp Mean temperature, on its natural scale.
-#' @param meas_error Measurement error, as a fraction of each trait's standard
+#' @param n Number of individuals to draw, before trimming.
+#' @param mean_append,mean_mass Raw-scale means, used as the log-scale location
+#'   via `log()`.
+#' @param gradient_dist Marginal distribution of the gradient: `"uniform"` (the
+#'   default) or `"normal"`.
+#' @param gradient_range Two increasing numbers giving the gradient's bounds,
+#'   e.g. `c(1970, 2026)`. Uniform gradients only. Determines `mean_gradient`
+#'   and `sd_gradient`, which must then not be supplied.
+#' @param mean_gradient,sd_gradient Location and spread of the gradient.
+#'   Default to `0` and `1`, a z-scored gradient.
+#' @param meas_error Observer error, as a fraction of each trait's standard
 #'   deviation. Applied to both traits.
-#' @param transient_error_mass,transient_error_append Biological fluctuation,
-#'   as a fraction of that trait's standard deviation.
-#' @param trim_sd Drop individuals lying more than `trim_sd` raw-scale standard
+#' @param transient_error_append,transient_error_mass Biological fluctuation, as
+#'   a fraction of that trait's standard deviation.
+#' @param trim_sd Drop individuals more than `trim_sd` raw-scale standard
 #'   deviations from the mean of `Append` or `Mass`. `NULL` disables trimming.
-#'   Because the traits are log-normal, raw-scale trimming is asymmetric and
-#'   removes more of the right tail than the left.
+#'   The gradient is never trimmed. Because the traits are log-normal, raw-scale
+#'   trimming is asymmetric and removes more of the right tail than the left.
+#' @param log If `TRUE` (the default), append the `Append_log` and `Mass_log`
+#'   columns, computed after error is added. `FALSE` returns the raw traits and
+#'   the gradient only.
 #' @param empirical If `TRUE` (the default), the drawn sample has exactly the
-#'   specified means and covariance, rather than being a random draw from a
-#'   population with those parameters. Trimming and error break this guarantee.
+#'   requested moments and correlations, rather than being a random draw from a
+#'   population with them. Trimming and error break this guarantee.
 #'
-#' @return A tibble with `n` rows or fewer: `Append`, `Mass`, `Temp`, and the
-#'   log-scale `Append_log` and `Mass_log`, computed after error is added.
+#' @return A tibble with `n` rows or fewer: `Append`, `Mass`, the gradient
+#'   column if requested, and `Append_log`, `Mass_log` unless `log = FALSE`.
 #'
-#' @seealso [sim_correlated()] for a simpler raw-scale bivariate draw with no
-#'   allometric target.
+#' @seealso [implied_allometry()] to inspect what a parameter set implies, and
+#'   [sim_correlated()] for a raw-scale bivariate draw with no allometric target.
 #'
 #' @examples
 #' set.seed(1)
-#' d <- sim_allometric(n = 500, b_avg = 0.33, r_am = 0.3)
-#' coef(smatr::sma(Append_log ~ Mass_log, data = d))
 #'
-#' # Mass fluctuates transiently; the appendage does not
-#' set.seed(1)
-#' sim_allometric(n = 500, transient_error_mass = 0.5)
+#' # Isometry, no gradient
+#' d <- sim_allometric(n = 500)
+#' coef(smatr::sma(Append_log ~ Mass_log, data = d))[["slope"]]
+#'
+#' # Allen's rule: warmer places, relatively longer appendages
+#' warm <- sim_allometric(
+#'   n = 500, gradient = "Temperature", gradient_range = c(0, 24),
+#'   r_grad_app = 0.3, r_grad_mass = -0.1
+#' )
+#' range(warm$Temperature)
+#'
+#' # A century of specimens, drawn evenly across years
+#' yr <- sim_allometric(n = 500, gradient = "Year", gradient_range = c(1970, 2026))
+#'
+#' # Raw traits only
+#' names(sim_allometric(n = 10, log = FALSE))
 #'
 #' @export
 sim_allometric <- function(n = 3000,
-                           b_avg = 0.33,
-                           r_am = 0.3,
-                           r_at = -0.1,
-                           r_mt = -0.1,
-                           mean_mass = 80,
-                           mean_append = 180,
-                           mean_temp = 1,
-                           sd_log_morph = 0.07,
-                           vary = c("mass", "append"),
-                           sd_temp = 0.18,
+                           r_app_mass = NULL, b_ols = NULL, b_sma = NULL, b_avg = NULL,
+                           sd_log_append = NULL, sd_log_mass = NULL,
+                           mean_append = 180, mean_mass = 80,
+                           gradient = NULL,
+                           gradient_dist = c("uniform", "normal"),
+                           gradient_range = NULL,
+                           mean_gradient = 0, sd_gradient = 1,
+                           r_grad_app = 0, r_grad_mass = 0,
                            meas_error = 0,
-                           transient_error_mass = 0,
-                           transient_error_append = 0,
-                           trim_sd = 3,
-                           empirical = TRUE) {
-  vary  <- match.arg(vary)
-  Sigma <- build_cov_mat(
-    b_avg = b_avg, r_am = r_am, r_at = r_at, r_mt = r_mt,
-    sd_log_morph = sd_log_morph, vary = vary, sd_temp = sd_temp
+                           transient_error_append = 0, transient_error_mass = 0,
+                           trim_sd = 3, log = TRUE, empirical = TRUE) {
+  ## `missing()` must be consulted before match.arg() assigns to `gradient_dist`, or it always reports FALSE.
+  scale_supplied <- !missing(mean_gradient) || !missing(sd_gradient)
+  grad_supplied  <- scale_supplied || !is.null(gradient_range) ||
+    !missing(r_grad_app) || !missing(r_grad_mass) || !missing(gradient_dist)
+  gradient_dist  <- match.arg(gradient_dist)
+
+  parms <- solve_allometry(
+    r_app_mass = r_app_mass, b_ols = b_ols, b_sma = b_sma, b_avg = b_avg,
+    sd_log_append = sd_log_append, sd_log_mass = sd_log_mass
   )
-  mu <- c(log(mean_append), log(mean_mass), mean_temp)
+  mu_a <- base::log(mean_append)
+  mu_m <- base::log(mean_mass)
 
-  sim_log <- MASS::mvrnorm(n, mu = mu, Sigma = Sigma, empirical = empirical)
-  colnames(sim_log) <- c("Append", "Mass", "Temp")
-
-  sim <- tibble::tibble(
-    Append = exp(sim_log[, "Append"]),
-    Mass   = exp(sim_log[, "Mass"]),
-    Temp   = sim_log[, "Temp"]
-  )
-  sim <- trim_outliers(sim, cols = c("Append", "Mass"), n_sd = trim_sd)
-
-  sim |>
-    dplyr::mutate(
-      Append = add_error(Append, meas_error, transient_error_append),
-      Mass   = add_error(Mass,   meas_error, transient_error_mass),
-      Append_log = log(Append),
-      Mass_log   = log(Mass)
+  if (is.null(gradient)) {
+    if (grad_supplied) {
+      rlang::abort(
+        c("Gradient arguments were supplied without naming a gradient.",
+          i = "Set `gradient = \"Temperature\"` (or another name) to include one."))
+    }
+    Sigma <- cor_to_cov(
+      matrix(c(1, parms$r_app_mass, parms$r_app_mass, 1), nrow = 2),
+      c(parms$sd_log_append, parms$sd_log_mass)
     )
+    draw <- MASS::mvrnorm(n, mu = c(mu_a, mu_m), Sigma = Sigma, empirical = empirical)
+    sim  <- tibble::tibble(Append = exp(draw[, 1]), Mass = exp(draw[, 2]))
+  } else {
+    check_gradient_name(gradient)
+    ## Reject impossible correlation triples up front. This is the same determinant condition that makes the residual covariance below positive definite, so one check serves both.
+    vars <- c("Append", "Mass", gradient)
+    check_pos_def(matrix(
+      c(1,                parms$r_app_mass, r_grad_app,
+        parms$r_app_mass, 1,                r_grad_mass,
+        r_grad_app,       r_grad_mass,      1),
+      nrow = 3, byrow = TRUE, dimnames = list(vars, vars)
+    ))
+
+    g_scale <- resolve_gradient_scale(gradient_range, mean_gradient, sd_gradient,
+                                      gradient_dist, scale_supplied, rlang::current_env())
+
+    g <- draw_gradient(n, gradient_dist, empirical)
+
+    ## Residual correlation chosen so that cor(log_A, log_M) lands on r_app_mass once the shared gradient path is added back in.
+    rho_e <- (parms$r_app_mass - r_grad_app * r_grad_mass) /
+      sqrt((1 - r_grad_app^2) * (1 - r_grad_mass^2))
+    e <- draw_residuals(n, rho_e, g, empirical)
+
+    log_a <- mu_a + parms$sd_log_append * (r_grad_app  * g + sqrt(1 - r_grad_app^2)  * e[, 1])
+    log_m <- mu_m + parms$sd_log_mass   * (r_grad_mass * g + sqrt(1 - r_grad_mass^2) * e[, 2])
+
+    sim <- tibble::tibble(Append = exp(log_a), Mass = exp(log_m))
+    sim[[gradient]] <- g_scale$mean + g_scale$sd * g
+  }
+
+  sim <- trim_outliers(sim, cols = c("Append", "Mass"), n_sd = trim_sd)
+  sim <- dplyr::mutate(
+    sim,
+    Append = add_error(Append, meas_error, transient_error_append),
+    Mass   = add_error(Mass,   meas_error, transient_error_mass)
+  )
+  if (log) {
+    sim <- dplyr::mutate(sim, Append_log = base::log(Append), Mass_log = base::log(Mass))
+  }
+  sim
 }
 
 
@@ -168,17 +306,15 @@ sim_allometric <- function(n = 3000,
 #' Draws a bivariate normal pair of appendage length and body mass with a given
 #' correlation, then optionally perturbs each with measurement error and
 #' transient biological fluctuation. Unlike [sim_allometric()] there is no log
-#' transform and no allometric target: this is the tool for building intuition
-#' about how a fitted slope responds to correlation and to error added on one
-#' trait but not the other.
+#' transform, no allometric target, and no gradient: this is the tool for
+#' building intuition about how a fitted slope responds to correlation and to
+#' error added on one trait but not the other.
 #'
 #' @param n Number of individuals.
 #' @param r Correlation between appendage length and mass.
 #' @param mu_append,mu_mass Means of the two traits.
 #' @param sd_append,sd_mass Standard deviations of the two traits.
 #' @inheritParams sim_allometric
-#' @param empirical If `TRUE` (the default), the sample has exactly the
-#'   specified moments before error is added.
 #'
 #' @return A tibble of `n` rows with columns `Append` and `Mass`.
 #'
