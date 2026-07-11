@@ -7,16 +7,22 @@
 #' [implied_allometry()], so supply any three of `r_app_mass`, `b_ols`, `b_sma`,
 #' `b_avg`, `sd_log_append`, `sd_log_mass`.
 #'
-#' The gradient always enters at **unit standard deviation**. This matrix
-#' describes a correlation structure, not the gradient's units; [sim_allometric()]
-#' rescales the drawn gradient afterwards. Consequently there is no
-#' `sd_gradient` argument here.
+#' The gradient enters at **unit standard deviation by default**, because this
+#' matrix primarily describes a correlation structure and [sim_allometric()]
+#' rescales the drawn gradient itself. Set `sd_gradient` to put the gradient on
+#' its own scale — e.g. `sd_gradient = 0.18` for a temperature index — so the
+#' returned matrix is the covariance of your actual system rather than a
+#' standardised one.
 #'
 #' @inheritParams implied_allometry
 #' @param gradient Optional string naming an environmental gradient (e.g.
 #'   `"Temperature"`). `NULL` (the default) returns the 2x2 morphological block.
 #' @param r_grad_app,r_grad_mass Correlations of the gradient with
 #'   `log(Append)` and `log(Mass)`. Ignored when `gradient` is `NULL`.
+#' @param sd_gradient Standard deviation of the gradient. Defaults to `1`.
+#'   Ignored when `gradient` is `NULL`. The morphological correlations and
+#'   slopes do not depend on it; it scales only the gradient's own variance and
+#'   covariances.
 #'
 #' @return A covariance matrix, 2x2 with dimnames `Append`, `Mass`, or 3x3 with
 #'   the gradient's name appended.
@@ -26,15 +32,18 @@
 #' @examples
 #' build_cov_mat(b_sma = 1/3, r_app_mass = 0.3, sd_log_mass = 0.07)
 #'
+#' # A temperature gradient on its own scale (SD 0.18), not standardised
 #' build_cov_mat(
 #'   b_sma = 1/3, r_app_mass = 0.3, sd_log_mass = 0.07,
-#'   gradient = "Temperature", r_grad_app = -0.3, r_grad_mass = -0.1
+#'   gradient = "Temperature", r_grad_app = -0.3, r_grad_mass = -0.1,
+#'   sd_gradient = 0.18
 #' )
 #'
 #' @export
 build_cov_mat <- function(r_app_mass = NULL, b_ols = NULL, b_sma = NULL, b_avg = NULL,
                           sd_log_append = NULL, sd_log_mass = NULL,
-                          gradient = NULL, r_grad_app = 0, r_grad_mass = 0) {
+                          gradient = NULL, r_grad_app = 0, r_grad_mass = 0,
+                          sd_gradient = 1) {
   parms <- solve_allometry(
     r_app_mass = r_app_mass, b_ols = b_ols, b_sma = b_sma, b_avg = b_avg,
     sd_log_append = sd_log_append, sd_log_mass = sd_log_mass
@@ -49,6 +58,10 @@ build_cov_mat <- function(r_app_mass = NULL, b_ols = NULL, b_sma = NULL, b_avg =
   }
 
   check_gradient_name(gradient)
+  if (!rlang::is_scalar_double(sd_gradient) && !rlang::is_scalar_integer(sd_gradient) ||
+      sd_gradient <= 0) {
+    rlang::abort("`sd_gradient` must be a single positive number.")
+  }
   vars <- c("Append", "Mass", gradient)
   cor_mat <- matrix(
     c(1,            parms$r_app_mass, r_grad_app,
@@ -57,7 +70,7 @@ build_cov_mat <- function(r_app_mass = NULL, b_ols = NULL, b_sma = NULL, b_avg =
     nrow = 3, byrow = TRUE, dimnames = list(vars, vars)
   )
   check_pos_def(cor_mat)
-  cor_to_cov(cor_mat, c(parms$sd_log_append, parms$sd_log_mass, 1))
+  cor_to_cov(cor_mat, c(parms$sd_log_append, parms$sd_log_mass, sd_gradient))
 }
 
 
@@ -169,6 +182,18 @@ draw_residuals <- function(n, rho_e, g, empirical) {
 #' error and applies to both traits alike; `transient_error_*` represents real
 #' short-term biological fluctuation, which afflicts mass far more than a
 #' skeletal appendage.
+#'
+#' @section Reproducibility and trimming:
+#' This function consumes the random number stream, so call [set.seed()] before
+#' it for reproducible output. Because the internal order of the draws is an
+#' implementation detail, byte-for-byte reproducibility is tied to a fixed
+#' package version: pin one (e.g. `remotes::install_github("LezzGitIt/sliR@v0.1.0")`)
+#' for analyses that must reproduce exactly.
+#'
+#' Trimming (`trim_sd`) is applied **jointly** to `Append` and `Mass`: a row is
+#' dropped if either trait exceeds the cut. Code that instead trims one trait
+#' and then the other, using each trait's pre-trim standard deviation, will
+#' retain a slightly different set of rows for the same draw.
 #'
 #' @inheritParams build_cov_mat
 #' @param n Number of individuals to draw, before trimming.

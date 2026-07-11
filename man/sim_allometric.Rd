@@ -127,6 +127,20 @@ short-term biological fluctuation, which afflicts mass far more than a
 skeletal appendage.
 }
 
+\section{Reproducibility and trimming}{
+
+This function consumes the random number stream, so call \code{\link[=set.seed]{set.seed()}} before
+it for reproducible output. Because the internal order of the draws is an
+implementation detail, byte-for-byte reproducibility is tied to a fixed
+package version: pin one (e.g. \code{remotes::install_github("LezzGitIt/sliR@v0.1.0")})
+for analyses that must reproduce exactly.
+
+Trimming (\code{trim_sd}) is applied \strong{jointly} to \code{Append} and \code{Mass}: a row is
+dropped if either trait exceeds the cut. Code that instead trims one trait
+and then the other, using each trait's pre-trim standard deviation, will
+retain a slightly different set of rows for the same draw.
+}
+
 \examples{
 set.seed(1)
 

@@ -21,12 +21,29 @@ test_that("build_cov_mat gains a unit-SD gradient block named after the gradient
                          gradient = "Temperature", r_grad_app = -0.3, r_grad_mass = -0.1)
   expect_equal(dim(Sigma), c(3L, 3L))
   expect_equal(colnames(Sigma)[3], "Temperature")
-  # The gradient carries unit SD: this matrix describes correlations, not units.
+  # The gradient defaults to unit SD: this matrix describes correlations, not units.
   expect_equal(Sigma[["Temperature", "Temperature"]], 1)
 
   R <- stats::cov2cor(Sigma)
   expect_equal(R[["Append", "Temperature"]], -0.3)
   expect_equal(R[["Mass", "Temperature"]], -0.1)
+})
+
+test_that("sd_gradient scales only the gradient block, leaving morphology and correlations", {
+  base   <- build_cov_mat(b_sma = 1/3, r_app_mass = 0.3, sd_log_mass = 0.07,
+                          gradient = "Temp", r_grad_app = -0.3, r_grad_mass = -0.1)
+  scaled <- build_cov_mat(b_sma = 1/3, r_app_mass = 0.3, sd_log_mass = 0.07,
+                          gradient = "Temp", r_grad_app = -0.3, r_grad_mass = -0.1,
+                          sd_gradient = 0.18)
+  expect_equal(sqrt(scaled[["Temp", "Temp"]]), 0.18)
+  # Morphology block and every correlation are invariant to sd_gradient.
+  expect_equal(base[1:2, 1:2], scaled[1:2, 1:2])
+  expect_equal(stats::cov2cor(base), stats::cov2cor(scaled))
+  expect_error(
+    build_cov_mat(b_sma = 1/3, r_app_mass = 0.3, sd_log_mass = 0.07,
+                  gradient = "Temp", sd_gradient = -1),
+    "positive number"
+  )
 })
 
 test_that("build_cov_mat rejects impossible correlation triples", {

@@ -13,7 +13,8 @@ build_cov_mat(
   sd_log_mass = NULL,
   gradient = NULL,
   r_grad_app = 0,
-  r_grad_mass = 0
+  r_grad_mass = 0,
+  sd_gradient = 1
 )
 }
 \arguments{
@@ -30,6 +31,11 @@ on \code{log(Mass)}.}
 
 \item{r_grad_app, r_grad_mass}{Correlations of the gradient with
 \code{log(Append)} and \code{log(Mass)}. Ignored when \code{gradient} is \code{NULL}.}
+
+\item{sd_gradient}{Standard deviation of the gradient. Defaults to \code{1}.
+Ignored when \code{gradient} is \code{NULL}. The morphological correlations and
+slopes do not depend on it; it scales only the gradient's own variance and
+covariances.}
 }
 \value{
 A covariance matrix, 2x2 with dimnames \code{Append}, \code{Mass}, or 3x3 with
@@ -42,17 +48,21 @@ extended with an environmental gradient. The allometry is resolved by
 \code{b_avg}, \code{sd_log_append}, \code{sd_log_mass}.
 }
 \details{
-The gradient always enters at \strong{unit standard deviation}. This matrix
-describes a correlation structure, not the gradient's units; \code{\link[=sim_allometric]{sim_allometric()}}
-rescales the drawn gradient afterwards. Consequently there is no
-\code{sd_gradient} argument here.
+The gradient enters at \strong{unit standard deviation by default}, because this
+matrix primarily describes a correlation structure and \code{\link[=sim_allometric]{sim_allometric()}}
+rescales the drawn gradient itself. Set \code{sd_gradient} to put the gradient on
+its own scale — e.g. \code{sd_gradient = 0.18} for a temperature index — so the
+returned matrix is the covariance of your actual system rather than a
+standardised one.
 }
 \examples{
 build_cov_mat(b_sma = 1/3, r_app_mass = 0.3, sd_log_mass = 0.07)
 
+# A temperature gradient on its own scale (SD 0.18), not standardised
 build_cov_mat(
   b_sma = 1/3, r_app_mass = 0.3, sd_log_mass = 0.07,
-  gradient = "Temperature", r_grad_app = -0.3, r_grad_mass = -0.1
+  gradient = "Temperature", r_grad_app = -0.3, r_grad_mass = -0.1,
+  sd_gradient = 0.18
 )
 
 }
