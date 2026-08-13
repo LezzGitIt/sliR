@@ -1,0 +1,157 @@
+# Getting started with sliR
+
+``` r
+
+library(sliR)
+library(dplyr)
+library(purrr)
+```
+
+This vignette covers the two things a user of sliR actually does:
+simulating data across a grid of parameters, and computing the SLI on
+real data with messy, multi-level grouping.
+
+## Simulating across a parameter grid
+
+[`sim_allometric()`](https://LezzGitIt.github.io/sliR/reference/sim_allometric.md)
+draws one dataset per call. To compare many scenarios, build a tibble of
+parameter combinations and map over its rows with
+[`purrr::pmap()`](https://purrr.tidyverse.org/reference/pmap.html) —
+this works because the grid’s column names match
+[`sim_allometric()`](https://LezzGitIt.github.io/sliR/reference/sim_allometric.md)’s
+arguments exactly.
+
+``` r
+
+grid <- tibble::as_tibble(expand.grid(
+  n = 300,
+  r_app_mass = c(0.1, 0.3, 0.5),
+  b_sma = c(1 / 4, 1 / 3)
+))
+grid
+#> # A tibble: 6 × 3
+#>       n r_app_mass b_sma
+#>   <dbl>      <dbl> <dbl>
+#> 1   300        0.1 0.25 
+#> 2   300        0.3 0.25 
+#> 3   300        0.5 0.25 
+#> 4   300        0.1 0.333
+#> 5   300        0.3 0.333
+#> 6   300        0.5 0.333
+
+set.seed(1)
+sims <- pmap(grid, sim_allometric)
+map_dbl(sims, \(d) cor(d$Append_log, d$Mass_log))
+#> [1] 0.1301125 0.2919785 0.4971040 0.1032040 0.3180196 0.4958657
+```
+
+Each element of `sims` is one simulated dataset for one row of `grid`.
+
+A gradient (temperature, latitude, year, …) needs two extra columns
+whose names are fixed by
+[`sim_allometric()`](https://LezzGitIt.github.io/sliR/reference/sim_allometric.md):
+`r_grad_app` and `r_grad_mass`. The gradient’s name itself
+(`gradient = "Temperature"`) is not part of the grid, because every row
+shares it — pass it as a separate, constant argument to
+[`pmap()`](https://purrr.tidyverse.org/reference/pmap.html).
+
+``` r
+
+grad_grid <- tibble::as_tibble(expand.grid(
+  n = 300,
+  r_grad_app = c(-0.3, 0, 0.3),
+  r_grad_mass = -0.1
+))
+grad_grid
+#> # A tibble: 3 × 3
+#>       n r_grad_app r_grad_mass
+#>   <dbl>      <dbl>       <dbl>
+#> 1   300       -0.3        -0.1
+#> 2   300        0          -0.1
+#> 3   300        0.3        -0.1
+
+set.seed(1)
+grad_sims <- pmap(
+  grad_grid, sim_allometric,
+  gradient = "Temperature", gradient_range = c(0, 24)
+)
+map_dbl(grad_sims, \(d) cor(d$Append_log, d$Temperature))
+#> [1] -0.30254297 -0.01170966  0.29208056
+```
+
+## Per-group SLI on messy real data
+
+Real datasets rarely have every individual assigned a clean group: some
+may be age-unknown, and some age classes may be too sparse — or too
+weakly allometric — for a per-group slope to mean anything. Simulate
+something in that spirit: two age classes with a real mass–appendage
+relationship, one (juveniles) without, plus some unknown-coded
+individuals.
+
+``` r
+
+set.seed(1)
+adult <- sim_allometric(n = 150, r_app_mass = 0.5, b_sma = 1 / 3) |> mutate(Age = "Adult")
+subadult <- sim_allometric(n = 150, r_app_mass = 0.45, b_sma = 1 / 3) |> mutate(Age = "Subadult")
+juvenile <- sim_allometric(n = 150, r_app_mass = 0.02, b_sma = 1 / 3) |> mutate(Age = "Juvenile")
+unk <- sim_allometric(n = 10) |> mutate(Age = "Unk")
+
+birds <- bind_rows(adult, subadult, juvenile, unk)
+count(birds, Age)
+#> # A tibble: 4 × 2
+#>   Age          n
+#>   <chr>    <int>
+#> 1 Adult      149
+#> 2 Juvenile   150
+#> 3 Subadult   148
+#> 4 Unk         10
+```
+
+Before trusting a per-group slope, check whether each group’s mass and
+appendage length are actually correlated with
+[`build_group_cor_tbl()`](https://LezzGitIt.github.io/sliR/reference/build_group_cor_tbl.md).
+Rows coded `"Unk"` (the default in `unknown_codes`) are excluded
+automatically, so they never appear here.
+
+``` r
+
+build_group_cor_tbl(birds, control = "Age")
+#> # A tibble: 3 × 5
+#>   Age          n  b_ols      r  p_value
+#>   <chr>    <int>  <dbl>  <dbl>    <dbl>
+#> 1 Adult      149 0.655  0.481  5.29e-10
+#> 2 Juvenile   150 0.0196 0.0147 8.58e- 1
+#> 3 Subadult   148 0.528  0.393  7.88e- 7
+```
+
+`Age == "Juvenile"` has no meaningful mass–appendage relationship (`r`
+near zero, large `p_value`), so an SMA slope fit to that group would be
+noise.
+[`calc_sli()`](https://LezzGitIt.github.io/sliR/reference/calc_sli.md)
+fits a slope to every level present in the data, with no significance
+filtering of its own, so drop the juveniles before calling it — the
+remaining unknown-coded rows still come along, and still receive
+`sli = NA` automatically.
+
+``` r
+
+birds |>
+  filter(Age != "Juvenile") |>
+  calc_sli(control = "Age") |>
+  select(Append, Mass, Age, sli) |>
+  filter(is.na(sli) | Age == "Adult") |>
+  head()
+#> # A tibble: 6 × 4
+#>   Append  Mass Age     sli
+#>    <dbl> <dbl> <chr> <dbl>
+#> 1   179.  82.9 Adult  177.
+#> 2   180.  79.5 Adult  181.
+#> 3   176.  78.9 Adult  177.
+#> 4   183.  73.5 Adult  188.
+#> 5   177.  71.9 Adult  183.
+#> 6   174.  75.0 Adult  178.
+```
+
+Individuals whose `control` value is `NA` (here, the `"M"` birds we
+recoded, plus the original `"Unk"` rows once included) receive
+`sli = NA` rather than a slope fit to a relationship that isn’t there.
