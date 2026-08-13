@@ -3,6 +3,11 @@
 Changes prompted by the first real use of the package, migrating the
 SLI-allens-rule manuscript's simulation and analysis onto sliR.
 
+* Added a "Getting started" vignette (`vignette("sliR")`) covering the two
+  workflows not shown in the README: simulating across a parameter grid
+  (including the gradient case), and computing the SLI per group on messy
+  real data with unknown-coded and weakly-allometric groups.
+
 * `build_cov_mat()` gains an `sd_gradient` argument (default `1`). Previously the
   gradient always entered at unit standard deviation, so the returned matrix was
   a standardised structure rather than the covariance of the caller's actual

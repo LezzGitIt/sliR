@@ -6,15 +6,10 @@ version are recorded in `NEWS.md`.
 
 ## High value
 
-- [ ] **Vignettes for the two real workflows.** The README covers basics but
-      not the two things a user actually does:
-    1. *Simulating across a parameter grid.* `pmap(grid, \(...) sim_allometric(n, ...))`
-       works when the grid's column names match the arguments — show this, and
-       show the gradient case (which needs `gradient =` passed separately and
-       columns named `r_grad_app` / `r_grad_mass`).
-    2. *Per-group SLI on messy real data.* Unknown-coded groups, sparse cells,
-       and gating `sli_estimated` on a strong-enough mass–appendage correlation
-       via `build_group_cor_tbl()`.
+- [x] **Vignette for the two real workflows** (`vignettes/sliR.Rmd`, done
+      2026-08-13). Covers simulating across a parameter grid (including the
+      gradient case) and per-group SLI on messy real data (unknown-coded
+      groups, gating on `build_group_cor_tbl()`).
 - [ ] **README: reproducibility + citation section.** Recommend pinning a
       version (`@v0.1.0`) and citing a specific version/DOI, since outputs land
       in papers. Mint a Zenodo DOI from the GitHub release and reference it.
