@@ -215,6 +215,45 @@ test_that("trimming drops rows from the gradient column too, keeping the tibble 
 })
 
 
+# sim_grid ----
+
+test_that("sim_grid runs one scenario per row of params and stamps .scenario", {
+  grid <- expand.grid(n = 50, r_app_mass = c(0.1, 0.3, 0.5), b_sma = 1/3)
+  set.seed(1)
+  sims <- sim_grid(grid)
+  expect_named(sims, c(".scenario", "Append", "Mass", "Append_log", "Mass_log"))
+  expect_equal(unique(sims$.scenario), 1:3)
+  expect_true(is.integer(sims$.scenario))
+  expect_equal(as.integer(table(sims$.scenario)), rep(50L, 3))
+})
+
+test_that("sim_grid forwards constant arguments via ... to every scenario", {
+  grad_grid <- expand.grid(n = 50, r_grad_app = c(-0.3, 0, 0.3), r_grad_mass = -0.1)
+  set.seed(1)
+  sims <- sim_grid(grad_grid, gradient = "Temperature", gradient_range = c(0, 24), trim_sd = NULL)
+  expect_true("Temperature" %in% names(sims))
+  expect_equal(as.integer(table(sims$.scenario)), rep(50L, 3))
+  expect_gte(min(sims$Temperature), 0)
+  expect_lte(max(sims$Temperature), 24)
+})
+
+test_that("sim_grid matches calling sim_allometric row by row", {
+  grid <- expand.grid(n = 30, r_app_mass = c(0.2, 0.4), b_sma = 1/3)
+  set.seed(7); combined <- sim_grid(grid)
+  set.seed(7)
+  separate <- dplyr::bind_rows(purrr::pmap(grid, sim_allometric), .id = "x")
+  expect_equal(dplyr::select(combined, -".scenario"), dplyr::select(separate, -"x"))
+})
+
+test_that("sim_grid rejects a bad params or id_col", {
+  expect_error(sim_grid(data.frame()), "at least one row")
+  expect_error(sim_grid(list(n = 50)), "data frame")
+  grid <- expand.grid(n = 10, r_app_mass = 0.3, b_sma = 1/3)
+  expect_error(sim_grid(grid, id_col = "n"), "already names a column")
+  expect_error(sim_grid(grid, id_col = c("a", "b")), "single non-empty string")
+})
+
+
 # sim_correlated ----
 
 test_that("sim_correlated hits the requested correlation and moments with empirical = TRUE", {

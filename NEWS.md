@@ -8,6 +8,10 @@ SLI-allens-rule manuscript's simulation and analysis onto sliR.
   (including the gradient case), and computing the SLI per group on messy
   real data with unknown-coded and weakly-allometric groups.
 
+* Added `sim_grid()`, a thin wrapper that maps [sim_allometric()] over a data
+  frame of parameter combinations and row-binds the result, stamping a
+  `.scenario` column identifying which row produced each simulated dataset.
+
 * `build_cov_mat()` gains an `sd_gradient` argument (default `1`). Previously the
   gradient always entered at unit standard deviation, so the returned matrix was
   a standardised structure rather than the covariance of the caller's actual

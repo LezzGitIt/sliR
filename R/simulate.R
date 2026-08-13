@@ -326,6 +326,59 @@ sim_allometric <- function(n = 3000,
 }
 
 
+#' Simulate [sim_allometric()] across a grid of parameters
+#'
+#' A thin wrapper for the common case of comparing many scenarios: each row of
+#' `params` becomes one call to [sim_allometric()], its columns matched to
+#' `sim_allometric()`'s arguments by name exactly as `purrr::pmap()` would.
+#' Arguments that are constant across every scenario — most often `gradient`,
+#' a single string naming one column — are passed via `...` instead of
+#' appearing in `params`.
+#'
+#' @param params A data frame, one row per scenario, with columns named after
+#'   [sim_allometric()]'s arguments (e.g. `n`, `r_app_mass`, `r_grad_app`).
+#' @param ... Arguments passed to every call of [sim_allometric()], constant
+#'   across scenarios (e.g. `gradient = "Temperature"`).
+#' @param id_col Name of the integer column identifying which row of `params`
+#'   produced each simulated row, matching that row's position in `params`.
+#'   Defaults to `".scenario"`.
+#'
+#' @return A single tibble: the row-bound output of [sim_allometric()] for
+#'   every row of `params`, with `id_col` added. Join `params` back on by row
+#'   number (`dplyr::mutate(params, .scenario = dplyr::row_number())`) to
+#'   recover the parameter values behind each scenario.
+#'
+#' @seealso [sim_allometric()], which this maps over.
+#'
+#' @examples
+#' grid <- expand.grid(n = 200, r_app_mass = c(0.1, 0.3, 0.5), b_sma = 1 / 3)
+#' set.seed(1)
+#' sims <- sim_grid(grid)
+#' dplyr::count(sims, .scenario)
+#'
+#' # Arguments constant across the grid, like the gradient's name and range,
+#' # are passed once via `...` rather than repeated in every row of `params`.
+#' grad_grid <- expand.grid(n = 200, r_grad_app = c(-0.3, 0, 0.3), r_grad_mass = -0.1)
+#' set.seed(1)
+#' grad_sims <- sim_grid(grad_grid, gradient = "Temperature", gradient_range = c(0, 24))
+#'
+#' @export
+sim_grid <- function(params, ..., id_col = ".scenario") {
+  if (!is.data.frame(params) || nrow(params) == 0L) {
+    rlang::abort("`params` must be a data frame with at least one row.")
+  }
+  if (!rlang::is_string(id_col) || !nzchar(id_col)) {
+    rlang::abort("`id_col` must be a single non-empty string.")
+  }
+  if (id_col %in% names(params)) {
+    rlang::abort(paste0("`id_col` (\"", id_col, "\") already names a column of `params`; choose another."))
+  }
+
+  sims <- purrr::pmap(params, sim_allometric, ...)
+  dplyr::bind_rows(purrr::imap(sims, \(sim, i) dplyr::mutate(sim, "{id_col}" := as.integer(i), .before = 1)))
+}
+
+
 #' Simulate correlated appendage and mass on the raw scale
 #'
 #' Draws a bivariate normal pair of appendage length and body mass with a given

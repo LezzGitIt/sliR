@@ -16,10 +16,6 @@ version are recorded in `NEWS.md`.
 
 ## Medium
 
-- [ ] **Grid-simulation ergonomics.** `pmap`/`do.call` over a params tibble
-      works but is awkward once a gradient is involved (extra args, fixed column
-      names). Consider a thin `sim_grid(params_df, ...)` helper, or settle for
-      documenting the pattern well in the vignette above.
 - [ ] **Decide whether to re-add `calc_lambda()`.** It was dropped from sliR
       because nothing in the package used it, but the paper repos still do, and
       each keeps a private copy (`sqrt(calc_lambda(mass, wing))` approximates the

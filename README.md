@@ -312,6 +312,7 @@ not the other. `build_cov_mat()` exposes the covariance matrix that
 | `sim_allometric()` | Log-normal traits with a target allometry, optionally along a gradient |
 | `implied_allometry()` | What a set of allometric parameters implies for the remaining parameters |
 | `sim_correlated()` | Raw-scale correlated appendage and mass |
+| `sim_grid()` | Map `sim_allometric()` over a grid of parameter combinations |
 | `build_cov_mat()` | Log-scale covariance matrix behind `sim_allometric()` |
 
 ## References
