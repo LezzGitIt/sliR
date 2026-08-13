@@ -6,17 +6,24 @@ version <- if (is.null(meta$Version)) "0.1.0" else meta$Version
 
 citHeader("To cite sliR in publications, please use:")
 
+## The version is baked into the title, not just `note`, because common CSL
+## styles (APA, Elsevier-Harvard, Nature, Vancouver all checked) drop the
+## `note` field for a Manual entry when a reference manager (Zotero, Mendeley,
+## a journal's citation processor) formats it -- silently losing the version
+## number that reproducibility depends on. Embedding it in the title survives
+## every style tested.
 bibentry(
   bibtype  = "Manual",
-  title    = "{sliR}: Standardized Length Index and Allometric Data Simulation",
+  title    = paste0("{sliR}: Standardized Length Index and Allometric Data ",
+                    "Simulation (Version ", version, ")"),
   author   = person("Aaron", "Skinner"),
   year     = year,
   note     = paste("R package version", version),
   url      = "https://github.com/LezzGitIt/sliR",
   textVersion = paste0(
     "Skinner, A. (", year, "). sliR: Standardized Length Index and Allometric ",
-    "Data Simulation. R package version ", version,
-    ". https://github.com/LezzGitIt/sliR"
+    "Data Simulation (Version ", version, "). ",
+    "https://github.com/LezzGitIt/sliR"
   )
 )
 

@@ -16,6 +16,11 @@ SLI-allens-rule manuscript's simulation and analysis onto sliR.
   `sim_allometric()`'s name for the same quantity. `r` still works but warns
   once per session; it will be removed in a future version.
 
+* `inst/CITATION` now bakes the package version into the title, not just the
+  `note` field: common CSL styles (APA, Elsevier-Harvard, Nature, Vancouver
+  all checked) drop `note` for a Manual entry, which silently lost the
+  version number that reproducibility depends on.
+
 * `build_cov_mat()` gains an `sd_gradient` argument (default `1`). Previously the
   gradient always entered at unit standard deviation, so the returned matrix was
   a standardised structure rather than the covariance of the caller's actual

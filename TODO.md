@@ -33,5 +33,7 @@ version are recorded in `NEWS.md`.
 ## Housekeeping
 
 - [ ] Set up pkgdown so the reference + vignettes render as a browsable site.
-- [ ] Confirm the `inst/CITATION` version renders under common CSL styles
-      (the Elsevier CSL dropped the `note = "R package version ..."` field).
+- [x] Confirm the `inst/CITATION` version renders under common CSL styles
+      (done 2026-08-13). Checked APA, Elsevier-Harvard, Nature, and Vancouver
+      via `pandoc --citeproc`: all four drop the `note` field, so the version
+      is now baked into the title as well, which survives every style tested.
