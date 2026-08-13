@@ -6,6 +6,7 @@
 <!-- badges: start -->
 
 [![R-CMD-check](https://github.com/LezzGitIt/sliR/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/LezzGitIt/sliR/actions/workflows/R-CMD-check.yaml)
+[![pkgdown](https://img.shields.io/badge/docs-pkgdown-blue.svg)](https://lezzgitit.github.io/sliR/)
 <!-- badges: end -->
 
 sliR computes the **Standardized Length Index (SLI)**, a size correction
