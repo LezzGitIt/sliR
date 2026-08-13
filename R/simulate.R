@@ -389,9 +389,11 @@ sim_grid <- function(params, ..., id_col = ".scenario") {
 #' error added on one trait but not the other.
 #'
 #' @param n Number of individuals.
-#' @param r Correlation between appendage length and mass.
+#' @param r_app_mass Correlation between appendage length and mass.
 #' @param mu_append,mu_mass Means of the two traits.
 #' @param sd_append,sd_mass Standard deviations of the two traits.
+#' @param r Soft-deprecated: use `r_app_mass` instead, the name
+#'   [sim_allometric()] uses for the same quantity.
 #' @inheritParams sim_allometric
 #'
 #' @return A tibble of `n` rows with columns `Append` and `Mass`.
@@ -399,13 +401,13 @@ sim_grid <- function(params, ..., id_col = ".scenario") {
 #' @examples
 #' set.seed(1)
 #' # Transient fluctuation in mass alone attenuates the fitted slope
-#' clean <- sim_correlated(r = 0.3, transient_error_mass = 0)
-#' noisy <- sim_correlated(r = 0.3, transient_error_mass = 1)
+#' clean <- sim_correlated(r_app_mass = 0.3, transient_error_mass = 0)
+#' noisy <- sim_correlated(r_app_mass = 0.3, transient_error_mass = 1)
 #' c(clean = cor(clean$Append, clean$Mass), noisy = cor(noisy$Append, noisy$Mass))
 #'
 #' @export
 sim_correlated <- function(n = 3000,
-                           r = 0.3,
+                           r_app_mass = 0.3,
                            mu_append = 180,
                            mu_mass = 80,
                            sd_append = 10,
@@ -413,9 +415,18 @@ sim_correlated <- function(n = 3000,
                            meas_error = 0,
                            transient_error_append = 0,
                            transient_error_mass = 0,
-                           empirical = TRUE) {
+                           empirical = TRUE,
+                           r = NULL) {
+  if (!is.null(r)) {
+    rlang::warn(
+      c("`r` is deprecated; use `r_app_mass` instead.",
+        i = "`sim_allometric()` uses `r_app_mass` for the same quantity; `r` will be removed in a future version."),
+      .frequency = "once", .frequency_id = "sim_correlated_r"
+    )
+    r_app_mass <- r
+  }
   vars    <- c("Append", "Mass")
-  cor_mat <- matrix(c(1, r, r, 1), nrow = 2, dimnames = list(vars, vars))
+  cor_mat <- matrix(c(1, r_app_mass, r_app_mass, 1), nrow = 2, dimnames = list(vars, vars))
   check_pos_def(cor_mat)
   Sigma <- cor_to_cov(cor_mat, c(sd_append, sd_mass))
 

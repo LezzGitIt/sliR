@@ -6,7 +6,7 @@
 \usage{
 sim_correlated(
   n = 3000,
-  r = 0.3,
+  r_app_mass = 0.3,
   mu_append = 180,
   mu_mass = 80,
   sd_append = 10,
@@ -14,13 +14,14 @@ sim_correlated(
   meas_error = 0,
   transient_error_append = 0,
   transient_error_mass = 0,
-  empirical = TRUE
+  empirical = TRUE,
+  r = NULL
 )
 }
 \arguments{
 \item{n}{Number of individuals.}
 
-\item{r}{Correlation between appendage length and mass.}
+\item{r_app_mass}{Correlation between appendage length and mass.}
 
 \item{mu_append, mu_mass}{Means of the two traits.}
 
@@ -35,6 +36,9 @@ a fraction of that trait's standard deviation.}
 \item{empirical}{If \code{TRUE} (the default), the drawn sample has exactly the
 requested moments and correlations, rather than being a random draw from a
 population with them. Trimming and error break this guarantee.}
+
+\item{r}{Soft-deprecated: use \code{r_app_mass} instead, the name
+\code{\link[=sim_allometric]{sim_allometric()}} uses for the same quantity.}
 }
 \value{
 A tibble of \code{n} rows with columns \code{Append} and \code{Mass}.
@@ -50,8 +54,8 @@ error added on one trait but not the other.
 \examples{
 set.seed(1)
 # Transient fluctuation in mass alone attenuates the fitted slope
-clean <- sim_correlated(r = 0.3, transient_error_mass = 0)
-noisy <- sim_correlated(r = 0.3, transient_error_mass = 1)
+clean <- sim_correlated(r_app_mass = 0.3, transient_error_mass = 0)
+noisy <- sim_correlated(r_app_mass = 0.3, transient_error_mass = 1)
 c(clean = cor(clean$Append, clean$Mass), noisy = cor(noisy$Append, noisy$Mass))
 
 }

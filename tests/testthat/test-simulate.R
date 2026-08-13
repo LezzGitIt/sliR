@@ -258,7 +258,7 @@ test_that("sim_grid rejects a bad params or id_col", {
 
 test_that("sim_correlated hits the requested correlation and moments with empirical = TRUE", {
   set.seed(5)
-  d <- sim_correlated(n = 1000, r = 0.3, mu_append = 180, mu_mass = 80,
+  d <- sim_correlated(n = 1000, r_app_mass = 0.3, mu_append = 180, mu_mass = 80,
                       sd_append = 10, sd_mass = 5)
   expect_named(d, c("Append", "Mass"))
   expect_equal(cor(d$Append, d$Mass), 0.3, tolerance = 1e-8)
@@ -267,7 +267,17 @@ test_that("sim_correlated hits the requested correlation and moments with empiri
 })
 
 test_that("transient error in mass alone attenuates the mass-appendage correlation", {
-  set.seed(5); clean <- sim_correlated(n = 2000, r = 0.3)
-  set.seed(5); noisy <- sim_correlated(n = 2000, r = 0.3, transient_error_mass = 1)
+  set.seed(5); clean <- sim_correlated(n = 2000, r_app_mass = 0.3)
+  set.seed(5); noisy <- sim_correlated(n = 2000, r_app_mass = 0.3, transient_error_mass = 1)
   expect_lt(abs(cor(noisy$Append, noisy$Mass)), abs(cor(clean$Append, clean$Mass)))
+})
+
+test_that("the deprecated `r` argument still works and warns", {
+  ## `.frequency = "once"` fires at most once per session, so this must be the only
+  ## call to `sim_correlated(r = ...)` in the test suite; a second call would not warn.
+  set.seed(5)
+  expect_warning(via_r <- sim_correlated(n = 500, r = 0.3), "deprecated")
+  set.seed(5)
+  via_r_app_mass <- sim_correlated(n = 500, r_app_mass = 0.3)
+  expect_equal(via_r, via_r_app_mass)
 })

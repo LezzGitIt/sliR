@@ -12,6 +12,10 @@ SLI-allens-rule manuscript's simulation and analysis onto sliR.
   frame of parameter combinations and row-binds the result, stamping a
   `.scenario` column identifying which row produced each simulated dataset.
 
+* `sim_correlated()`'s `r` argument is renamed `r_app_mass`, matching
+  `sim_allometric()`'s name for the same quantity. `r` still works but warns
+  once per session; it will be removed in a future version.
+
 * `build_cov_mat()` gains an `sd_gradient` argument (default `1`). Previously the
   gradient always entered at unit standard deviation, so the returned matrix was
   a standardised structure rather than the covariance of the caller's actual

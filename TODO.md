@@ -20,9 +20,6 @@ version are recorded in `NEWS.md`.
       because nothing in the package used it, but the paper repos still do, and
       each keeps a private copy (`sqrt(calc_lambda(mass, wing))` approximates the
       SMA slope). Re-adding would let those repos delete the duplication.
-- [ ] **`sim_correlated()` argument naming.** Its `r` is the same quantity as
-      `sim_allometric()`'s `r_app_mass`; consider aligning for consistency
-      (with deprecation of the old name).
 
 ## Lower / deferred (already noted in Project_notes / design)
 

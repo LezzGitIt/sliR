@@ -286,9 +286,9 @@ relationship:
 
 ``` r
 set.seed(5)
-clean <- sim_correlated(n = 2000, r = 0.3)
+clean <- sim_correlated(n = 2000, r_app_mass = 0.3)
 set.seed(5)
-noisy <- sim_correlated(n = 2000, r = 0.3, transient_error_mass = 1)
+noisy <- sim_correlated(n = 2000, r_app_mass = 0.3, transient_error_mass = 1)
 
 c(clean = cor(clean$Append, clean$Mass),
   noisy = cor(noisy$Append, noisy$Mass))
