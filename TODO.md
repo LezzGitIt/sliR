@@ -32,7 +32,12 @@ version are recorded in `NEWS.md`.
 
 ## Housekeeping
 
-- [ ] Set up pkgdown so the reference + vignettes render as a browsable site.
+- [x] Set up pkgdown so the reference + vignettes render as a browsable site
+      (done 2026-08-13; `_pkgdown.yml`, `.github/workflows/pkgdown.yaml`,
+      `URL` field extended with the pages URL). Deploys to `gh-pages` on push
+      to `main`/`master`; **GitHub Pages itself still needs to be pointed at
+      the `gh-pages` branch in the repo's Settings → Pages** after the first
+      push — not done here, as it changes shared repo settings.
 - [x] Confirm the `inst/CITATION` version renders under common CSL styles
       (done 2026-08-13). Checked APA, Elsevier-Harvard, Nature, and Vancouver
       via `pandoc --citeproc`: all four drop the `note` field, so the version

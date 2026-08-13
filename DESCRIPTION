@@ -12,7 +12,7 @@ License: MIT + file LICENSE
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.2
-URL: https://github.com/LezzGitIt/sliR
+URL: https://github.com/LezzGitIt/sliR, https://LezzGitIt.github.io/sliR/
 BugReports: https://github.com/LezzGitIt/sliR/issues
 Depends:
     R (>= 4.1)

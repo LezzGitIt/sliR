@@ -21,6 +21,10 @@ SLI-allens-rule manuscript's simulation and analysis onto sliR.
   all checked) drop `note` for a Manual entry, which silently lost the
   version number that reproducibility depends on.
 
+* Set up a pkgdown site (`_pkgdown.yml`, `.github/workflows/pkgdown.yaml`) so
+  the reference and vignette render as a browsable site, deployed to
+  `gh-pages` on push.
+
 * `build_cov_mat()` gains an `sd_gradient` argument (default `1`). Previously the
   gradient always entered at unit standard deviation, so the returned matrix was
   a standardised structure rather than the covariance of the caller's actual

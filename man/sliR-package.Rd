@@ -12,6 +12,7 @@ Computes the Standardized Length Index (SLI) for size-correcting appendage lengt
 Useful links:
 \itemize{
   \item \url{https://github.com/LezzGitIt/sliR}
+  \item \url{https://LezzGitIt.github.io/sliR/}
   \item Report bugs at \url{https://github.com/LezzGitIt/sliR/issues}
 }
 
