@@ -15,8 +15,13 @@ calc_sli(
   b_sli = 0.33,
   M0 = NULL,
   control = NULL,
+  method = c("average", "hierarchical"),
   unknown_codes = c("Unk", "U", "Unknown"),
   slope_diff_warn = 0.15,
+  n_min_cell = 50,
+  n_min_marginal = 100,
+  cor_min = 0.3,
+  cor_p_max = 0.05,
   rename_col = NULL,
   sort = FALSE
 )
@@ -56,23 +61,43 @@ calc_sli(
 - control:
 
   Optional character vector of grouping columns (e.g.
-  `c("Age", "Sex")`). When supplied,
-  [`build_sli_slopes_tbl()`](https://LezzGitIt.github.io/sliR/reference/build_sli_slopes_tbl.md)
-  estimates a separate SMA slope per group and each individual receives
-  their group's averaged slope in place of `b_sli`. Individuals whose
-  `control` values are `NA` or match `unknown_codes` receive `sli = NA`.
+  `c("Age", "Sex")`). When supplied, each individual's `b_sli` is
+  replaced by a group-specific slope, resolved as `method` describes.
+  Individuals whose `control` values are `NA` or match `unknown_codes`
+  receive `sli = NA` under `method = "average"`; under `"hierarchical"`
+  they instead cascade through the same fallback as everyone else (see
+  [`build_sli_slopes_hierarchical()`](https://LezzGitIt.github.io/sliR/reference/build_sli_slopes_hierarchical.md)).
+
+- method:
+
+  How a group's slope is resolved when `control` is supplied.
+  `"average"` (the default) uses
+  [`build_sli_slopes_tbl()`](https://LezzGitIt.github.io/sliR/reference/build_sli_slopes_tbl.md):
+  every `control` variable's own SMA slope, averaged together
+  unconditionally. `"hierarchical"` uses
+  [`build_sli_slopes_hierarchical()`](https://LezzGitIt.github.io/sliR/reference/build_sli_slopes_hierarchical.md):
+  a reliability-gated cascade that falls back to coarser groupings (and
+  ultimately the pooled slope) when a cell is too sparse or too weakly
+  correlated to trust its own slope. Ignored when `control` is `NULL`.
 
 - unknown_codes:
 
   Values in the `control` columns that mark an unknown group and so
-  cannot be assigned a slope.
+  cannot be assigned a slope under `method = "average"`.
 
 - slope_diff_warn:
 
   Passed to
-  [`build_sli_slopes_tbl()`](https://LezzGitIt.github.io/sliR/reference/build_sli_slopes_tbl.md).
-  Warn when the per-variable SMA slopes averaged within a group differ
-  by more than this. Only relevant with two or more `control` variables.
+  [`build_sli_slopes_tbl()`](https://LezzGitIt.github.io/sliR/reference/build_sli_slopes_tbl.md)
+  when `method = "average"`. Warn when the per-variable SMA slopes
+  averaged within a group differ by more than this. Only relevant with
+  two or more `control` variables.
+
+- n_min_cell, n_min_marginal, cor_min, cor_p_max:
+
+  Passed to
+  [`build_sli_slopes_hierarchical()`](https://LezzGitIt.github.io/sliR/reference/build_sli_slopes_hierarchical.md)
+  when `method = "hierarchical"`; ignored otherwise.
 
 - rename_col:
 
@@ -106,9 +131,11 @@ method. *Oikos* 118, 1883–1891.
 ## See also
 
 [`build_sli_slopes_tbl()`](https://LezzGitIt.github.io/sliR/reference/build_sli_slopes_tbl.md)
-for the per-group slopes, and
+and
+[`build_sli_slopes_hierarchical()`](https://LezzGitIt.github.io/sliR/reference/build_sli_slopes_hierarchical.md)
+for the two ways a group's slope can be resolved, and
 [`build_group_cor_tbl()`](https://LezzGitIt.github.io/sliR/reference/build_group_cor_tbl.md)
-to check whether per-group slopes are warranted.
+to check whether per-group slopes are warranted at all.
 
 ## Examples
 
@@ -142,4 +169,18 @@ d |>
 #> 4   187.  82.8       5.23     4.42         185.        186.
 #> 5   183.  94.1       5.21     4.54         174.        176.
 #> 6   174.  67.2       5.16     4.21         185.        182.
+
+# Per-group slopes, falling back to coarser groupings where a cell is
+# too sparse or too weakly correlated to trust its own slope.
+d$Sex <- rep(c("F", "M"), length.out = nrow(d))
+head(calc_sli(d, control = "Sex", method = "hierarchical"))
+#> # A tibble: 6 × 6
+#>   Append  Mass Append_log Mass_log Sex     sli
+#>    <dbl> <dbl>      <dbl>    <dbl> <chr> <dbl>
+#> 1   177.  77.7       5.18     4.35 F        NA
+#> 2   179.  71.5       5.19     4.27 M        NA
+#> 3   175.  71.5       5.16     4.27 F        NA
+#> 4   187.  82.8       5.23     4.42 M        NA
+#> 5   183.  94.1       5.21     4.54 F        NA
+#> 6   174.  67.2       5.16     4.21 M        NA
 ```

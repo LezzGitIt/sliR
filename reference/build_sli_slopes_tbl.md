@@ -40,7 +40,7 @@ build_sli_slopes_tbl(
 - unknown_codes:
 
   Values in the `control` columns that mark an unknown group and so
-  cannot be assigned a slope.
+  cannot be assigned a slope under `method = "average"`.
 
 - slope_diff_warn:
 

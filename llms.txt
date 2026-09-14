@@ -353,6 +353,9 @@ about Allometric Lines.” *Methods in Ecology and Evolution* 3 (2):
 - [`build_group_cor_tbl()`](https://LezzGitIt.github.io/sliR/reference/build_group_cor_tbl.md)
   : Per-group mass–appendage correlation diagnostic
 
+- [`build_sli_slopes_hierarchical()`](https://LezzGitIt.github.io/sliR/reference/build_sli_slopes_hierarchical.md)
+  : Per-cell SMA allometric slopes, with reliability-gated fallback
+
 - [`build_sli_slopes_tbl()`](https://LezzGitIt.github.io/sliR/reference/build_sli_slopes_tbl.md)
   : Per-group SMA allometric slopes
 
@@ -361,6 +364,10 @@ about Allometric Lines.” *Methods in Ecology and Evolution* 3 (2):
 
 - [`implied_allometry()`](https://LezzGitIt.github.io/sliR/reference/implied_allometry.md)
   : Resolve an allometry from any sufficient subset of its parameters
+
+- [`implied_gradient_effect()`](https://LezzGitIt.github.io/sliR/reference/implied_gradient_effect.md)
+  : Resolve the ground-truth effect of a gradient on relative appendage
+  size
 
 - [`sim_allometric()`](https://LezzGitIt.github.io/sliR/reference/sim_allometric.md)
   : Simulate log-normal morphology, optionally along an environmental
