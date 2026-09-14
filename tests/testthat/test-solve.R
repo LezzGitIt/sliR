@@ -108,6 +108,70 @@ test_that("b_avg = 1/3 is not isometry, and b_sma = 1/3 is", {
   expect_equal(iso$b_sma, 1/3)
 })
 
+test_that("implied_gradient_effect matches the SLI-allens-rule manuscript's beta_T formula", {
+  # b_avg = 0.33, r_app_mass = 0.3 implies b_sma = 0.5076923 (shared fixture, test-solve.R:2).
+  out <- implied_gradient_effect(b_avg = 0.33, r_app_mass = 0.3,
+                                 r_grad_app = -0.3, r_grad_mass = -0.5)
+  b_sma <- 0.5076923
+  expect_equal(out$b_sma, b_sma, tolerance = 1e-5)
+  # Manuscript: beta_T = r_13 * b_sma - 0.33 * r_23 (r_13 = r_grad_app, r_23 = r_grad_mass here).
+  expect_equal(out$beta_ref, -0.3 * b_sma - (1 / 3) * -0.5, tolerance = 1e-5)
+})
+
+test_that("the two-pathways decomposition sums exactly to beta_ref", {
+  out <- implied_gradient_effect(b_sma = 0.5, r_app_mass = 0.3,
+                                 r_grad_app = 0.2, r_grad_mass = -0.1, b_anchor = 0.4)
+  expect_equal(out$allometry_component + out$differential_component, out$beta_ref)
+})
+
+test_that("anchoring at the realised allometry zeroes allometry_component, not differential_component", {
+  # Mirrors calc_sli(control = ...): the exponent IS the group's own b_sma.
+  out <- implied_gradient_effect(b_sma = 0.5, r_app_mass = 0.3,
+                                 r_grad_app = 0.2, r_grad_mass = -0.1, b_anchor = 0.5)
+  expect_equal(out$allometry_component, 0)
+  expect_false(isTRUE(all.equal(out$differential_component, 0)))
+  expect_equal(out$beta_ref, out$differential_component)
+})
+
+test_that("no differential association leaves only allometry_component", {
+  out <- implied_gradient_effect(b_sma = 0.5, r_app_mass = 0.3,
+                                 r_grad_app = 0.2, r_grad_mass = 0.2)
+  expect_equal(out$differential_component, 0)
+  expect_equal(out$beta_ref, out$allometry_component)
+})
+
+test_that("b_anchor defaults to isometry, matching implied_allometry's own default shape", {
+  out <- implied_gradient_effect(r_grad_app = 0.1, r_grad_mass = -0.1)  # no shape args -> isometric default
+  expect_equal(out$b_anchor, 1 / 3)
+  expect_equal(out$b_sma, 1 / 3)  # isometric default shape, as implied_allometry() documents
+})
+
+test_that("implied_gradient_effect rejects an infeasible three-way correlation triple", {
+  expect_error(
+    implied_gradient_effect(b_sma = 1 / 3, r_app_mass = 0.9,
+                            r_grad_app = 0.9, r_grad_mass = -0.9),
+    "not positive definite"
+  )
+})
+
+test_that("implied_gradient_effect inherits implied_allometry's own validation", {
+  expect_error(
+    implied_gradient_effect(b_sma = 0.5, r_grad_app = 0.1, r_grad_mass = -0.1),
+    "under-determined"
+  )
+})
+
+test_that("gradient correlations and the anchor must be single numbers", {
+  expect_error(
+    implied_gradient_effect(b_sma = 1 / 3, r_app_mass = 0.3, r_grad_app = c(0.1, 0.2), r_grad_mass = -0.1),
+    "single non-missing number"
+  )
+  expect_error(
+    implied_gradient_effect(b_sma = 1 / 3, r_app_mass = 0.3, r_grad_app = 0.1, r_grad_mass = -0.1, b_anchor = NA),
+    "single non-missing number"
+  )
+})
+
 test_that("sim_allometric realises whichever slope was pinned", {
   set.seed(1)
   d <- sim_allometric(n = 3000, b_sma = 1/3, r_app_mass = 0.3, sd_log_mass = 0.07, trim_sd = NULL)

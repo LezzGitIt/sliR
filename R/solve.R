@@ -235,3 +235,109 @@ implied_allometry <- function(r_app_mass = NULL, b_ols = NULL, b_sma = NULL, b_a
   )
   tibble::as_tibble(out)
 }
+
+
+#' Resolve the ground-truth effect of a gradient on relative appendage size
+#'
+#' Extends [implied_allometry()] to a third variable -- an environmental or
+#' temporal gradient along which both appendage length and mass may covary
+#' (temperature, latitude, year...). Answers the question a simulation needs
+#' before it can score any estimator: *given this allometry and these
+#' gradient correlations, what relative change should a correctly-specified
+#' estimator recover?*
+#'
+#' The appendage-mass allometry is resolved exactly as in [implied_allometry()]
+#' (supply any two of `r_app_mass`, `b_ols`, `b_sma`, `b_avg`, or none for the
+#' isometric default). The gradient enters through two further correlations,
+#' `r_grad_app` and `r_grad_mass` -- [sim_allometric()]'s own names for a
+#' gradient's correlation with `log(Append)` and `log(Mass)` respectively.
+#'
+#' Relative appendage size is defined against `b_anchor`: the scaling exponent
+#' that counts as "no relative change". `beta_ref` is the reference effect
+#' size a method anchored at `b_anchor` should report:
+#'
+#' \deqn{\beta_{ref} = \rho_{grad,app}\, b_{sma} - b_{anchor}\, \rho_{grad,mass}}
+#'
+#' Writing \eqn{\rho_{grad,app} = \rho_{grad,mass} + \Delta\rho}, this splits
+#' exactly into two components, returned separately because they answer
+#' different questions about *why* `beta_ref` is non-zero:
+#'
+#' \deqn{\beta_{ref} = \underbrace{\rho_{grad,mass}(b_{sma} - b_{anchor})}_{\text{allometry\_component}} +
+#'   \underbrace{b_{sma}\,\Delta\rho}_{\text{differential\_component}}}
+#'
+#' `allometry_component` is non-zero whenever the realised allometry departs
+#' from the anchor, even with no differential association between the
+#' gradient and either trait (`r_grad_app = r_grad_mass`). `differential_component`
+#' is non-zero only when the gradient associates more strongly with one trait
+#' than the other. An anchor fixed a priori (e.g. isometry, `b_anchor = 1/3`)
+#' is sensitive to both; anchoring at the realised allometry itself
+#' (`b_anchor = b_sma`) zeroes `allometry_component` identically, so `beta_ref`
+#' can only reflect differential association. That is the distinction between
+#' anchoring [calc_sli()] at a fixed exponent versus at each group's own
+#' estimated slope (`control =`), and it changes what a significant `beta_ref`
+#' can be taken as evidence of.
+#'
+#' @inheritParams implied_allometry
+#' @param r_grad_app Pearson correlation between the gradient and `log(Append)`.
+#' @param r_grad_mass Pearson correlation between the gradient and `log(Mass)`.
+#' @param b_anchor The scaling exponent defining "no relative change" -- the
+#'   reference [calc_sli()]-style methods are implicitly or explicitly scored
+#'   against. Defaults to `1/3`, the isometric exponent for a linear appendage
+#'   against a volumetric body-size proxy like mass.
+#'
+#' @return A one-row tibble: the resolved allometry (as [implied_allometry()]),
+#'   `r_grad_app`, `r_grad_mass`, `b_anchor`, `beta_ref`, and its decomposition
+#'   `allometry_component` + `differential_component` (which sum to `beta_ref`
+#'   exactly, up to floating-point error).
+#'
+#' @seealso [implied_allometry()], which this extends to a gradient;
+#'   [sim_allometric()] to simulate data with this exact correlation structure.
+#'
+#' @examples
+#' # Isometric anchor: both components can contribute.
+#' implied_gradient_effect(b_sma = 0.5, r_app_mass = 0.3,
+#'                          r_grad_app = 0.2, r_grad_mass = -0.1)
+#'
+#' # Anchored at the realised allometry itself: allometry_component vanishes,
+#' # matching SLI-estimated's logic (calc_sli(control = ...)).
+#' implied_gradient_effect(b_sma = 0.5, r_app_mass = 0.3,
+#'                          r_grad_app = 0.2, r_grad_mass = -0.1, b_anchor = 0.5)
+#'
+#' @export
+implied_gradient_effect <- function(r_app_mass = NULL, b_ols = NULL, b_sma = NULL, b_avg = NULL,
+                                    r_grad_app, r_grad_mass, b_anchor = 1 / 3,
+                                    sd_log_append = NULL, sd_log_mass = NULL) {
+  call <- rlang::current_env()
+  check_scalar_number(r_grad_app, "r_grad_app", call)
+  check_scalar_number(r_grad_mass, "r_grad_mass", call)
+  check_scalar_number(b_anchor, "b_anchor", call)
+
+  allometry <- solve_allometry(
+    r_app_mass = r_app_mass, b_ols = b_ols, b_sma = b_sma, b_avg = b_avg,
+    sd_log_append = sd_log_append, sd_log_mass = sd_log_mass, call = call
+  )
+
+  check_pos_def(matrix(
+    c(1,                     allometry$r_app_mass, r_grad_app,
+      allometry$r_app_mass,  1,                     r_grad_mass,
+      r_grad_app,            r_grad_mass,           1),
+    nrow = 3, byrow = TRUE,
+    dimnames = list(c("Append", "Mass", "Gradient"), c("Append", "Mass", "Gradient"))
+  ), call = call)
+
+  b_sma <- allometry$b_sma
+  allometry_component    <- r_grad_mass * (b_sma - b_anchor)
+  differential_component <- b_sma * (r_grad_app - r_grad_mass)
+
+  tibble::as_tibble(c(
+    allometry,
+    list(
+      r_grad_app = r_grad_app,
+      r_grad_mass = r_grad_mass,
+      b_anchor = b_anchor,
+      beta_ref = allometry_component + differential_component,
+      allometry_component = allometry_component,
+      differential_component = differential_component
+    )
+  ))
+}
