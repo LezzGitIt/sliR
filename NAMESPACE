@@ -2,6 +2,7 @@
 
 export(build_cov_mat)
 export(build_group_cor_tbl)
+export(build_sli_slopes_hierarchical)
 export(build_sli_slopes_tbl)
 export(calc_sli)
 export(implied_allometry)

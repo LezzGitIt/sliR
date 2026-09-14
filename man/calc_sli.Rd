@@ -11,8 +11,13 @@ calc_sli(
   b_sli = 0.33,
   M0 = NULL,
   control = NULL,
+  method = c("average", "hierarchical"),
   unknown_codes = c("Unk", "U", "Unknown"),
   slope_diff_warn = 0.15,
+  n_min_cell = 50,
+  n_min_marginal = 100,
+  cor_min = 0.3,
+  cor_p_max = 0.05,
   rename_col = NULL,
   sort = FALSE
 )
@@ -37,17 +42,32 @@ location-invariant analysis. (Peig & Green call this \eqn{L_0}, because
 their index standardises to a reference \emph{length}; the SLI inverts that.)}
 
 \item{control}{Optional character vector of grouping columns (e.g.
-\code{c("Age", "Sex")}). When supplied, \code{build_sli_slopes_tbl()} estimates a
-separate SMA slope per group and each individual receives their group's
-averaged slope in place of \code{b_sli}. Individuals whose \code{control} values are
-\code{NA} or match \code{unknown_codes} receive \code{sli = NA}.}
+\code{c("Age", "Sex")}). When supplied, each individual's \code{b_sli} is replaced
+by a group-specific slope, resolved as \code{method} describes. Individuals
+whose \code{control} values are \code{NA} or match \code{unknown_codes} receive
+\code{sli = NA} under \code{method = "average"}; under \code{"hierarchical"} they
+instead cascade through the same fallback as everyone else (see
+\code{\link[=build_sli_slopes_hierarchical]{build_sli_slopes_hierarchical()}}).}
+
+\item{method}{How a group's slope is resolved when \code{control} is supplied.
+\code{"average"} (the default) uses \code{\link[=build_sli_slopes_tbl]{build_sli_slopes_tbl()}}: every
+\code{control} variable's own SMA slope, averaged together unconditionally.
+\code{"hierarchical"} uses \code{\link[=build_sli_slopes_hierarchical]{build_sli_slopes_hierarchical()}}: a
+reliability-gated cascade that falls back to coarser groupings (and
+ultimately the pooled slope) when a cell is too sparse or too weakly
+correlated to trust its own slope. Ignored when \code{control} is \code{NULL}.}
 
 \item{unknown_codes}{Values in the \code{control} columns that mark an unknown
-group and so cannot be assigned a slope.}
+group and so cannot be assigned a slope under \code{method = "average"}.}
 
-\item{slope_diff_warn}{Passed to \code{\link[=build_sli_slopes_tbl]{build_sli_slopes_tbl()}}. Warn when the
-per-variable SMA slopes averaged within a group differ by more than this.
-Only relevant with two or more \code{control} variables.}
+\item{slope_diff_warn}{Passed to \code{\link[=build_sli_slopes_tbl]{build_sli_slopes_tbl()}} when
+\code{method = "average"}. Warn when the per-variable SMA slopes averaged
+within a group differ by more than this. Only relevant with two or more
+\code{control} variables.}
+
+\item{n_min_cell, n_min_marginal, cor_min, cor_p_max}{Passed to
+\code{\link[=build_sli_slopes_hierarchical]{build_sli_slopes_hierarchical()}} when \code{method = "hierarchical"};
+ignored otherwise.}
 
 \item{rename_col}{Optional string naming the output column. \code{NULL} (the
 default) leaves it as \code{sli}.}
@@ -84,6 +104,11 @@ d |>
   calc_sli(b_sli = 0.25, rename_col = "sli_shallow") |>
   head()
 
+# Per-group slopes, falling back to coarser groupings where a cell is
+# too sparse or too weakly correlated to trust its own slope.
+d$Sex <- rep(c("F", "M"), length.out = nrow(d))
+head(calc_sli(d, control = "Sex", method = "hierarchical"))
+
 }
 \references{
 Peig, J. & Green, A.J. (2009) New perspectives for estimating body condition
@@ -91,6 +116,7 @@ from mass/length data: the scaled mass index as an alternative method.
 \emph{Oikos} 118, 1883–1891. \doi{10.1111/j.1600-0706.2009.17643.x}
 }
 \seealso{
-\code{\link[=build_sli_slopes_tbl]{build_sli_slopes_tbl()}} for the per-group slopes, and
-\code{\link[=build_group_cor_tbl]{build_group_cor_tbl()}} to check whether per-group slopes are warranted.
+\code{\link[=build_sli_slopes_tbl]{build_sli_slopes_tbl()}} and \code{\link[=build_sli_slopes_hierarchical]{build_sli_slopes_hierarchical()}} for
+the two ways a group's slope can be resolved, and \code{\link[=build_group_cor_tbl]{build_group_cor_tbl()}}
+to check whether per-group slopes are warranted at all.
 }

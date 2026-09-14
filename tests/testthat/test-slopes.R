@@ -125,3 +125,99 @@ test_that("build_group_cor_tbl works when trait columns are lowercase", {
   d <- dplyr::rename(make_grouped(), wing = Append, mass = Mass)
   expect_no_error(build_group_cor_tbl(d, Append = wing, Mass = mass, control = "Sex"))
 })
+
+## build_sli_slopes_hierarchical() ----
+
+test_that("well-populated cells resolve at the cell level, to their own distinct slope", {
+  d   <- dplyr::filter(make_cascade_fixture(), Age != "Rare")
+  out <- build_sli_slopes_hierarchical(d, control = c("Age", "Sex"), n_min_cell = 10, n_min_marginal = 15)
+
+  expect_equal(nrow(out), 4L)
+  expect_true(all(out$pass_level == "cell"))
+  # Four distinct b_sma inputs (0.30/0.40/0.50/0.60) -> four distinct resolved slopes,
+  # not a single value that would indicate a fall-through to marginal or pooled.
+  expect_equal(length(unique(round(out$b_sli_avg, 2))), 4L)
+})
+
+test_that("a cell too sparse for its own fit falls back through marginal to pooled", {
+  out <- build_sli_slopes_hierarchical(make_cascade_fixture(), control = c("Age", "Sex"),
+                                       n_min_cell = 10, n_min_marginal = 15)
+
+  main <- dplyr::filter(out, Age != "Rare")
+  expect_true(all(main$pass_level == "cell"))
+
+  orphan <- dplyr::filter(out, Age == "Rare")
+  expect_equal(nrow(orphan), 1L)
+  # n = 4 for the cell, the Age marginal, and the Sex marginal alike -- all three fail
+  # n_min_cell/n_min_marginal = 10/15, so this is a real pooled fallback, not a coincidence.
+  expect_equal(orphan$pass_level, "pooled")
+
+  pooled_slope <- build_sli_slopes_hierarchical(make_cascade_fixture(), control = character(0))$b_sli_avg
+  expect_equal(orphan$b_sli_avg, pooled_slope)
+})
+
+test_that("an unreliable pooled fit sets every cell's slope to NA, pass_level = 'none'", {
+  out <- build_sli_slopes_hierarchical(make_unreliable_fixture(), control = "Sex")
+  expect_equal(nrow(out), 2L)
+  expect_true(all(out$pass_level == "none"))
+  expect_true(all(is.na(out$b_sli_avg)))
+})
+
+test_that("control = character(0) returns a single pooled row", {
+  d   <- make_cascade_fixture()
+  out <- build_sli_slopes_hierarchical(d, control = character(0))
+  expect_equal(nrow(out), 1L)
+  expect_equal(names(out), c("pass_level", "b_sli_avg"))
+  expect_equal(out$pass_level, "pooled")
+
+  fit <- fit_slope_reliability(
+    dplyr::mutate(d, .log_app = log(Append), .log_mass = log(Mass)), "Append", "Mass"
+  )
+  expect_equal(out$b_sli_avg, fit$slope)
+})
+
+test_that("a single control variable never resolves at the cell level", {
+  out <- build_sli_slopes_hierarchical(make_cascade_fixture(), control = "Age",
+                                       n_min_cell = 10, n_min_marginal = 15)
+  expect_false("cell" %in% out$pass_level)
+  expect_true(all(out$pass_level %in% c("marginal", "pooled")))
+})
+
+test_that("more than two control variables errors", {
+  d <- make_cascade_fixture()
+  d$Extra <- "x"
+  expect_error(
+    build_sli_slopes_hierarchical(d, control = c("Age", "Sex", "Extra")),
+    "length 0, 1, or 2"
+  )
+})
+
+test_that("NA and every unknown_codes spelling collapse to the same cascade class", {
+  d <- make_cascade_fixture()
+  rare_idx <- which(d$Age == "Rare" & d$Sex == "X")
+  d$Age[rare_idx[1:2]] <- NA
+  d$Age[rare_idx[3]]   <- "Unknown"
+  # Sex == "X" is entirely NA/unknown-coded Age now; all three spellings must
+  # still cascade together as one "Unk" class, not fragment into separate,
+  # each-too-small groups.
+  out <- build_sli_slopes_hierarchical(d, control = c("Age", "Sex"), n_min_cell = 10, n_min_marginal = 15)
+
+  rare_rows <- dplyr::filter(out, Sex == "X")
+  expect_equal(nrow(rare_rows), 3L)  # NA, "Unknown", and the one untouched literal "Rare" row
+  expect_equal(length(unique(rare_rows$b_sli_avg)), 1L)
+  expect_equal(length(unique(rare_rows$pass_level)), 1L)
+})
+
+test_that("calc_sli(method = 'hierarchical') assigns each row its cascade-resolved slope, NAs included", {
+  d <- make_cascade_fixture()
+  d$Age[1:3] <- NA  # exercise the NA-key join path explicitly
+
+  slopes <- build_sli_slopes_hierarchical(d, control = c("Age", "Sex"), n_min_cell = 10, n_min_marginal = 15)
+  out <- calc_sli(d, control = c("Age", "Sex"), method = "hierarchical",
+                  n_min_cell = 10, n_min_marginal = 15)
+
+  key <- match(paste(d$Age, d$Sex), paste(slopes$Age, slopes$Sex))
+  expected <- d$Append * (mean(d$Mass) / d$Mass)^slopes$b_sli_avg[key]
+  expect_equal(out$sli, expected)
+  expect_true(anyNA(d$Age))  # confirms the NA-join path was actually exercised, not vacuous
+})

@@ -5,6 +5,12 @@ restore_key_type <- function(x, template) {
   if (is.factor(template)) factor(x, levels = levels(template)) else x
 }
 
+### Collapses NA and unknown_codes to one explicit "Unk" class, rather than dropping those rows. Used by build_sli_slopes_hierarchical() so unknown-coded individuals still cascade through the same levels as everyone else, instead of being silently excluded (build_sli_slopes_tbl()/build_group_cor_tbl() drop them instead, via the same unknown_codes argument used differently).
+collapse_unknown_class <- function(x, unknown_codes) {
+  x_chr <- as.character(x)
+  dplyr::if_else(is.na(x_chr) | x_chr %in% unknown_codes, "Unk", x_chr)
+}
+
 ### smatr fits a separate slope per level only for factor/character groups; a numeric control column would be treated as a covariate and silently return a single slope.
 check_control_types <- function(df, control, call = rlang::caller_env()) {
   bad <- control[!vapply(df[control], \(x) is.character(x) || is.factor(x), logical(1))]
@@ -197,4 +203,176 @@ build_group_cor_tbl <- function(df,
       )
     }) |>
     dplyr::ungroup()
+}
+
+
+### One row of n / r / p_value / slope for a single subset -- the unit both cascade levels below are built from. r/p_value on the raw scale (matching build_group_cor_tbl()'s convention); slope is the log-scale SMA fit calc_sli() actually uses. Returns NA slope/r/p_value, not an error, when a subset is too small to fit (n < 3) -- callers decide via `reliable()` whether NA propagates further, not this helper.
+fit_slope_reliability <- function(sub, app_nm, mass_nm) {
+  if (nrow(sub) < 3) {
+    return(tibble::tibble(n = nrow(sub), r = NA_real_, p_value = NA_real_, slope = NA_real_))
+  }
+  r <- suppressWarnings(stats::cor(sub[[app_nm]], sub[[mass_nm]]))
+  p_value <- tryCatch(
+    stats::cor.test(sub[[app_nm]], sub[[mass_nm]])$p.value,
+    error = \(e) NA_real_
+  )
+  fmla  <- stats::as.formula(paste0(".log_app ~ .log_mass"))
+  slope <- tryCatch(
+    unname(stats::coef(smatr::sma(fmla, data = sub, method = "SMA"))["slope"]),
+    error = \(e) NA_real_
+  )
+  tibble::tibble(n = nrow(sub), r = r, p_value = p_value, slope = slope)
+}
+
+### TRUE where a subset clears both a minimum sample size and a reliable mass~appendage correlation. Vectorised over a table's rows, not a single subset.
+reliable <- function(tbl, n_min, cor_min, cor_p_max) {
+  !is.na(tbl$r) & tbl$n >= n_min & tbl$r >= cor_min & !is.na(tbl$p_value) & tbl$p_value < cor_p_max
+}
+
+
+#' Per-cell SMA allometric slopes, with reliability-gated fallback
+#'
+#' An alternative to [build_sli_slopes_tbl()] for when some `control` cells
+#' are too sparse or too weakly correlated to fit their own SMA slope. Rather
+#' than averaging every `control` variable's marginal slope unconditionally,
+#' this resolves one slope per cell from a cascade, finest to coarsest,
+#' stopping at the first level that clears both a minimum sample size and a
+#' reliable mass-appendage correlation (`cor_min`, `cor_p_max`):
+#'
+#' 1. **The cell itself** -- the full cross of both `control` variables (only
+#'    possible, and only attempted, with exactly two). Gated by `n_min_cell`.
+#' 2. **Single-variable marginals** -- each `control` variable's own slope,
+#'    pooling across the other. Gated by `n_min_marginal`; averaged together
+#'    when both pass, used unblended when only one does.
+#' 3. **The pooled slope** -- fit on every row of `df`, regardless of `control`.
+#'    Reached when no finer level passes, and used for every cell when
+#'    `control` is empty.
+#'
+#' `df`'s pooled mass-appendage correlation gates the whole cascade: when it
+#' is not itself reliable, every cell's slope is `NA` (`pass_level = "none"`)
+#' rather than falling back to an unreliable pooled fit. This keeps a caller's
+#' downstream SLI defined for either all of `df`'s rows or none, matching the
+#' shared-N convention other body-size-correction methods need for a fair
+#' comparison across them.
+#'
+#' Unlike [build_sli_slopes_tbl()] and [build_group_cor_tbl()], rows whose
+#' `control` values are `NA` or match `unknown_codes` are **not** dropped:
+#' they are collapsed to an explicit `"Unk"` class per variable, which
+#' cascades through the same three levels as every other class -- not a
+#' special case or an automatic fallback to pooled.
+#'
+#' @inheritParams build_sli_slopes_tbl
+#' @param control Character vector of **0, 1, or 2** grouping columns. Each
+#'   must be character or factor. Level 1 (the combined cell) is only
+#'   attempted with exactly two; with `character(0)`, every row resolves to
+#'   the pooled slope.
+#' @param n_min_cell Minimum `n` for level 1 (the combined cell). Defaults to
+#'   `50`.
+#' @param n_min_marginal Minimum `n` for level 2 (a single-variable marginal).
+#'   Defaults to `100`.
+#' @param cor_min,cor_p_max A level passes only when its raw-scale Pearson
+#'   correlation is at least `cor_min` (default `0.3`) with `p < cor_p_max`
+#'   (default `0.05`).
+#'
+#' @return A tibble with one row per observed combination of `control`'s
+#'   collapsed classes (or one row overall, when `control` is empty): the
+#'   control columns, `pass_level` (`"cell"`, `"marginal"`, `"pooled"`, or
+#'   `"none"`), and `b_sli_avg` -- the resolved slope, named to match
+#'   [build_sli_slopes_tbl()]'s output so both feed [calc_sli()]`(control =
+#'   ...)` identically. `NA` wherever `pass_level` is `"none"`.
+#'
+#' @seealso [build_sli_slopes_tbl()], the unconditional-averaging alternative
+#'   this generalises; [build_group_cor_tbl()] for the same per-cell
+#'   reliability diagnostic without the cascade.
+#'
+#' @examples
+#' set.seed(1)
+#' d <- sim_allometric(n = 500)
+#' d$Age <- sample(c("Juvenile", "Adult", NA), nrow(d), replace = TRUE, prob = c(.1, .7, .2))
+#' d$Sex <- sample(c("F", "M"), nrow(d), replace = TRUE)
+#' build_sli_slopes_hierarchical(d, control = c("Age", "Sex"))
+#'
+#' @export
+build_sli_slopes_hierarchical <- function(df,
+                                          Append = Append,
+                                          Mass = Mass,
+                                          control = character(0),
+                                          n_min_cell = 50,
+                                          n_min_marginal = 100,
+                                          cor_min = 0.3,
+                                          cor_p_max = 0.05,
+                                          unknown_codes = c("Unk", "U", "Unknown")) {
+  app_nm  <- rlang::as_label(rlang::enquo(Append))
+  mass_nm <- rlang::as_label(rlang::enquo(Mass))
+  check_cols(df, c(app_nm, mass_nm, control))
+  if (length(control) > 0) check_control_types(df, control)
+  if (length(control) > 2) {
+    rlang::abort('`control` must have length 0, 1, or 2: the combined cell (level 1) is only defined for two variables.')
+  }
+
+  d <- df |>
+    dplyr::mutate(.log_app = base::log(.data[[app_nm]]), .log_mass = base::log(.data[[mass_nm]]))
+
+  ## Level 3 / species-level gate: the pooled fit, and the final fallback for every cell.
+  pooled <- fit_slope_reliability(d, app_nm, mass_nm)
+  if (!isTRUE(reliable(pooled, n_min = 0, cor_min, cor_p_max))) {
+    if (length(control) == 0) {
+      return(tibble::tibble(pass_level = "none", b_sli_avg = NA_real_))
+    }
+    cells <- dplyr::count(d, !!!rlang::syms(control))[control]
+    return(dplyr::mutate(cells, pass_level = "none", b_sli_avg = NA_real_))
+  }
+  if (length(control) == 0) {
+    return(tibble::tibble(pass_level = "pooled", b_sli_avg = pooled$slope))
+  }
+
+  for (v in control) d[[paste0(".", v, "_cls")]] <- collapse_unknown_class(d[[v]], unknown_codes)
+  cls_cols <- paste0(".", control, "_cls")
+
+  ## Level 1: the combined cell, only defined with two control variables.
+  if (length(control) == 2) {
+    cell_tbl <- d |>
+      dplyr::group_by(dplyr::across(dplyr::all_of(cls_cols))) |>
+      dplyr::group_modify(\(grp, key) fit_slope_reliability(grp, app_nm, mass_nm)) |>
+      dplyr::ungroup()
+    cell_tbl$l1_pass  <- reliable(cell_tbl, n_min_cell, cor_min, cor_p_max)
+    cell_tbl$l1_slope <- cell_tbl$slope
+    d <- dplyr::left_join(d, dplyr::select(cell_tbl, dplyr::all_of(cls_cols), "l1_slope", "l1_pass"), by = cls_cols)
+  } else {
+    d$l1_slope <- NA_real_
+    d$l1_pass  <- FALSE
+  }
+
+  ## Level 2: one marginal fit per control variable, masked to NA wherever it fails -- so
+  ## a per-row average across the masked columns automatically reduces to whichever
+  ## marginal(s) passed, unblended when only one does.
+  for (v in control) {
+    cls <- paste0(".", v, "_cls")
+    marg_tbl <- d |>
+      dplyr::group_by(dplyr::across(dplyr::all_of(cls))) |>
+      dplyr::group_modify(\(grp, key) fit_slope_reliability(grp, app_nm, mass_nm)) |>
+      dplyr::ungroup()
+    marg_tbl$pass <- reliable(marg_tbl, n_min_marginal, cor_min, cor_p_max)
+    marg_tbl[[paste0(".", v, "_marg_masked")]] <- dplyr::if_else(marg_tbl$pass, marg_tbl$slope, NA_real_)
+    d <- dplyr::left_join(d, dplyr::select(marg_tbl, dplyr::all_of(cls), dplyr::ends_with("_marg_masked")), by = cls)
+  }
+
+  masked_cols <- paste0(".", control, "_marg_masked")
+  marg_avg    <- rowMeans(as.data.frame(d[masked_cols]), na.rm = TRUE)  # NaN where none passed
+  n_marg_pass <- rowSums(!is.na(as.data.frame(d[masked_cols])))
+
+  d$b_sli_avg   <- dplyr::case_when(
+    d$l1_pass %in% TRUE ~ d$l1_slope,
+    n_marg_pass >= 1     ~ marg_avg,
+    TRUE                 ~ pooled$slope
+  )
+  d$pass_level <- dplyr::case_when(
+    d$l1_pass %in% TRUE ~ "cell",
+    n_marg_pass >= 1     ~ "marginal",
+    TRUE                 ~ "pooled"
+  )
+
+  d |>
+    dplyr::distinct(dplyr::across(dplyr::all_of(control)), .data$pass_level, .data$b_sli_avg) |>
+    dplyr::arrange(dplyr::across(dplyr::all_of(control)))
 }

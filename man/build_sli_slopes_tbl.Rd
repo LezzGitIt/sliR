@@ -24,7 +24,7 @@ columns are named otherwise, pass them explicitly (e.g. \verb{Append = wing, Mas
 or factor.}
 
 \item{unknown_codes}{Values in the \code{control} columns that mark an unknown
-group and so cannot be assigned a slope.}
+group and so cannot be assigned a slope under \code{method = "average"}.}
 
 \item{slope_diff_warn}{Warn when the per-variable SMA slopes being averaged
 within a cell span more than this. Defaults to \code{0.15}, roughly half the

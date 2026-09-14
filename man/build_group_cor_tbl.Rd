@@ -23,7 +23,7 @@ columns are named otherwise, pass them explicitly (e.g. \verb{Append = wing, Mas
 or factor.}
 
 \item{unknown_codes}{Values in the \code{control} columns that mark an unknown
-group and so cannot be assigned a slope.}
+group and so cannot be assigned a slope under \code{method = "average"}.}
 }
 \value{
 A tibble with one row per observed combination of \code{control} levels:
