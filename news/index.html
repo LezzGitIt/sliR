@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">sliR</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0.9000</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.2.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -34,9 +34,14 @@
     </div>
 
     <div class="section level2">
-<h2 class="pkg-version" data-toc-text="development version" id="slir-development-version">sliR (development version)<a class="anchor" aria-label="anchor" href="#slir-development-version"></a></h2>
+<h2 class="pkg-version" data-toc-text="0.2.0" id="slir-020">sliR 0.2.0<a class="anchor" aria-label="anchor" href="#slir-020"></a></h2>
 <p>Changes prompted by the first real use of the package, migrating the SLI-allens-rule manuscript’s simulation and analysis onto sliR.</p>
-<ul><li><p>Added a “Getting started” vignette (<code><a href="../articles/sliR.html">vignette("sliR")</a></code>) covering the two workflows not shown in the README: simulating across a parameter grid (including the gradient case), and computing the SLI per group on messy real data with unknown-coded and weakly-allometric groups.</p></li>
+<ul><li><p>Added <code><a href="../reference/implied_gradient_effect.html">implied_gradient_effect()</a></code>, extending <code><a href="../reference/implied_allometry.html">implied_allometry()</a></code> to a gradient: resolves the ground-truth reference effect (<code>beta_ref</code>) a correctly-specified estimator should recover, given an allometry plus the gradient’s correlation with each trait (<code>r_grad_app</code>, <code>r_grad_mass</code>), and its two-pathways decomposition into an allometry-vs-anchor component and a differential-correlation component.</p></li>
+<li>
+<p>Added <code><a href="../reference/build_sli_slopes_hierarchical.html">build_sli_slopes_hierarchical()</a></code>, and a <code>method = c("average", "hierarchical")</code> argument on <code><a href="../reference/calc_sli.html">calc_sli()</a></code>. The hierarchical method resolves a group’s slope from a reliability-gated cascade (own cell → single-variable marginal → pooled slope) rather than <code><a href="../reference/build_sli_slopes_tbl.html">build_sli_slopes_tbl()</a></code>’s unconditional per-variable averaging, falling back to a coarser grouping when a cell is too sparse or too weakly correlated to trust its own slope. Capped at two <code>control</code> variables. Unlike <code><a href="../reference/build_sli_slopes_tbl.html">build_sli_slopes_tbl()</a></code>, <code>NA</code>/<code>unknown_codes</code> rows are collapsed to an explicit <code>"Unk"</code> class and cascade like any other group rather than being dropped.</p>
+<p>Note: <code>calc_sli(control = NULL, method = "hierarchical")</code> and <code>calc_sli(control = character(0), method = "hierarchical")</code> are <strong>not</strong> equivalent — <code>control = NULL</code> is treated as “no control at all”, falling back to the flat <code>b_sli</code> default, consistent with the <code>"average"</code> method. Constructions like <code>c(if (cond1) "Age", if (cond2) "Sex")</code> evaluate to <code>NULL</code>, not <code>character(0)</code>, when every condition is <code>FALSE</code> (<code>c(NULL, NULL)</code> is <code>NULL</code> in base R) — wrap in <code><a href="https://rdrr.io/r/base/character.html" class="external-link">as.character()</a></code> if you want that case to fall through to the pooled cascade instead.</p>
+</li>
+<li><p>Added a “Getting started” vignette (<code><a href="../articles/sliR.html">vignette("sliR")</a></code>) covering the two workflows not shown in the README: simulating across a parameter grid (including the gradient case), and computing the SLI per group on messy real data with unknown-coded and weakly-allometric groups.</p></li>
 <li><p>Added <code><a href="../reference/sim_grid.html">sim_grid()</a></code>, a thin wrapper that maps [sim_allometric()] over a data frame of parameter combinations and row-binds the result, stamping a <code>.scenario</code> column identifying which row produced each simulated dataset.</p></li>
 <li><p><code><a href="../reference/sim_correlated.html">sim_correlated()</a></code>’s <code>r</code> argument is renamed <code>r_app_mass</code>, matching <code><a href="../reference/sim_allometric.html">sim_allometric()</a></code>’s name for the same quantity. <code>r</code> still works but warns once per session; it will be removed in a future version.</p></li>
 <li><p><code>inst/CITATION</code> now bakes the package version into the title, not just the <code>note</code> field: common CSL styles (APA, Elsevier-Harvard, Nature, Vancouver all checked) drop <code>note</code> for a Manual entry, which silently lost the version number that reproducibility depends on.</p></li>
