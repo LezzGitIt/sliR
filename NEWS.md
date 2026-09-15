@@ -1,7 +1,34 @@
-# sliR (development version)
+# sliR 0.2.0
 
 Changes prompted by the first real use of the package, migrating the
 SLI-allens-rule manuscript's simulation and analysis onto sliR.
+
+* Added `implied_gradient_effect()`, extending `implied_allometry()` to a
+  gradient: resolves the ground-truth reference effect (`beta_ref`) a
+  correctly-specified estimator should recover, given an allometry plus the
+  gradient's correlation with each trait (`r_grad_app`, `r_grad_mass`), and
+  its two-pathways decomposition into an allometry-vs-anchor component and a
+  differential-correlation component.
+
+* Added `build_sli_slopes_hierarchical()`, and a `method =
+  c("average", "hierarchical")` argument on `calc_sli()`. The hierarchical
+  method resolves a group's slope from a reliability-gated cascade (own
+  cell → single-variable marginal → pooled slope) rather than
+  `build_sli_slopes_tbl()`'s unconditional per-variable averaging, falling
+  back to a coarser grouping when a cell is too sparse or too weakly
+  correlated to trust its own slope. Capped at two `control` variables.
+  Unlike `build_sli_slopes_tbl()`, `NA`/`unknown_codes` rows are collapsed
+  to an explicit `"Unk"` class and cascade like any other group rather than
+  being dropped.
+
+  Note: `calc_sli(control = NULL, method = "hierarchical")` and
+  `calc_sli(control = character(0), method = "hierarchical")` are **not**
+  equivalent — `control = NULL` is treated as "no control at all", falling
+  back to the flat `b_sli` default, consistent with the `"average"` method.
+  Constructions like `c(if (cond1) "Age", if (cond2) "Sex")` evaluate to
+  `NULL`, not `character(0)`, when every condition is `FALSE` (`c(NULL,
+  NULL)` is `NULL` in base R) — wrap in `as.character()` if you want that
+  case to fall through to the pooled cascade instead.
 
 * Added a "Getting started" vignette (`vignette("sliR")`) covering the two
   workflows not shown in the README: simulating across a parameter grid
