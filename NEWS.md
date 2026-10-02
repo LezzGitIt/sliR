@@ -1,4 +1,4 @@
-# sliR (development version)
+# sliR 0.2.1
 
 * Renamed the index the package computes from "Standardized Length Index" to
   "**Scaled Length Index**", matching the naming convention of Peig & Green

@@ -30,7 +30,8 @@ axis (SMA) regression, as recommended by Warton et al.
 
 ``` r
 # install.packages("remotes")
-remotes::install_github("LezzGitIt/sliR")
+# Pin a release tag so results are reproducible; see NEWS.md for changes between versions.
+remotes::install_github("LezzGitIt/sliR@v0.2.1")
 ```
 
 ## Computing the SLI
