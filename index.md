@@ -1,8 +1,8 @@
 # sliR
 
-sliR computes the **Standardized Length Index (SLI)**, a size correction
-for appendage lengths, and simulates allometric morphological data with
-a known scaling exponent, correlation structure, and error.
+sliR computes the **Scaled Length Index (SLI)**, a size correction for
+appendage lengths, and simulates allometric morphological data with a
+known scaling exponent, correlation structure, and error.
 
 The SLI adapts the scaled mass index of Peig and Green
 ([2009](#ref-peigNewPerspectivesEstimating2009)). Where their index
@@ -24,7 +24,8 @@ al. ([2012](#ref-wartonSmatr3Package2012)).
 ``` r
 
 # install.packages("remotes")
-remotes::install_github("LezzGitIt/sliR")
+# Pin a release tag so results are reproducible; see NEWS.md for changes between versions.
+remotes::install_github("LezzGitIt/sliR@v0.2.1")
 ```
 
 ## Computing the SLI
@@ -321,7 +322,7 @@ consumes.
 
 | Function | Purpose |
 |----|----|
-| [`calc_sli()`](https://LezzGitIt.github.io/sliR/reference/calc_sli.md) | Standardized Length Index per individual |
+| [`calc_sli()`](https://LezzGitIt.github.io/sliR/reference/calc_sli.md) | Scaled Length Index per individual |
 | [`build_sli_slopes_tbl()`](https://LezzGitIt.github.io/sliR/reference/build_sli_slopes_tbl.md) | Per-group SMA allometric slopes |
 | [`build_group_cor_tbl()`](https://LezzGitIt.github.io/sliR/reference/build_group_cor_tbl.md) | Per-group diagnostic for whether allometry is meaningful |
 | [`sim_allometric()`](https://LezzGitIt.github.io/sliR/reference/sim_allometric.md) | Log-normal traits with a target allometry, optionally along a gradient |

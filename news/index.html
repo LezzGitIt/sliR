@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">sliR</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.2.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.2.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -34,6 +34,10 @@
     </div>
 
     <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.2.1" id="slir-021">sliR 0.2.1<a class="anchor" aria-label="anchor" href="#slir-021"></a></h2>
+<ul><li>Renamed the index the package computes from “Standardized Length Index” to “<strong>Scaled Length Index</strong>”, matching the naming convention of Peig &amp; Green (2009)’s Scaled Mass Index, which it adapts. The abbreviation <code>SLI</code> is unchanged, so no function, argument, or column name changes — this is a documentation/metadata-only rename (<code>DESCRIPTION</code>, roxygen docs, <code>README</code>, <code>inst/CITATION</code>).</li>
+</ul></div>
+    <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.2.0" id="slir-020">sliR 0.2.0<a class="anchor" aria-label="anchor" href="#slir-020"></a></h2>
 <p>Changes prompted by the first real use of the package, migrating the SLI-allens-rule manuscript’s simulation and analysis onto sliR.</p>
 <ul><li><p>Added <code><a href="../reference/implied_gradient_effect.html">implied_gradient_effect()</a></code>, extending <code><a href="../reference/implied_allometry.html">implied_allometry()</a></code> to a gradient: resolves the ground-truth reference effect (<code>beta_ref</code>) a correctly-specified estimator should recover, given an allometry plus the gradient’s correlation with each trait (<code>r_grad_app</code>, <code>r_grad_mass</code>), and its two-pathways decomposition into an allometry-vs-anchor component and a differential-correlation component.</p></li>
@@ -53,7 +57,7 @@
 <h2 class="pkg-version" data-toc-text="0.1.0" id="slir-010">sliR 0.1.0<a class="anchor" aria-label="anchor" href="#slir-010"></a></h2>
 <p>First release.</p>
 <ul><li>
-<code><a href="../reference/calc_sli.html">calc_sli()</a></code> computes the Standardized Length Index, adapting the scaled mass index of Peig &amp; Green (2009) to standardise appendage length to a reference mass. Supports a scalar exponent or per-group SMA slopes via <code>control</code>.</li>
+<code><a href="../reference/calc_sli.html">calc_sli()</a></code> computes the Scaled Length Index, adapting the scaled mass index of Peig &amp; Green (2009) to standardise appendage length to a reference mass. Supports a scalar exponent or per-group SMA slopes via <code>control</code>.</li>
 <li>
 <code><a href="../reference/build_sli_slopes_tbl.html">build_sli_slopes_tbl()</a></code> and <code><a href="../reference/build_group_cor_tbl.html">build_group_cor_tbl()</a></code> fit and diagnose per-group allometric slopes.</li>
 <li>

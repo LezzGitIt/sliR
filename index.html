@@ -5,14 +5,14 @@
 <meta charset="utf-8">
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-<title>Standardized Length Index and Allometric Data Simulation • sliR</title>
+<title>Scaled Length Index and Allometric Data Simulation • sliR</title>
 <script src="deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 <link href="deps/bootstrap-5.3.8/bootstrap.min.css" rel="stylesheet">
 <script src="deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
 <link href="deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
-<script src="deps/headroom-0.11.0/headroom.min.js"></script><script src="deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="deps/search-1.0.0/fuse.min.js"></script><script src="deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="pkgdown.js"></script><meta property="og:title" content="Standardized Length Index and Allometric Data Simulation">
-<meta name="description" content="Computes the Standardized Length Index (SLI) for size-correcting appendage lengths, following the scaled mass index approach of Peig and Green (2009) &lt;doi:10.1111/j.1600-0706.2009.17643.x&gt;, and simulates allometric morphological data with controllable scaling exponents, correlation structure, and measurement or transient error.">
-<meta property="og:description" content="Computes the Standardized Length Index (SLI) for size-correcting appendage lengths, following the scaled mass index approach of Peig and Green (2009) &lt;doi:10.1111/j.1600-0706.2009.17643.x&gt;, and simulates allometric morphological data with controllable scaling exponents, correlation structure, and measurement or transient error.">
+<script src="deps/headroom-0.11.0/headroom.min.js"></script><script src="deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="deps/search-1.0.0/fuse.min.js"></script><script src="deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="pkgdown.js"></script><meta property="og:title" content="Scaled Length Index and Allometric Data Simulation">
+<meta name="description" content="Computes the Scaled Length Index (SLI) for size-correcting appendage lengths, following the scaled mass index approach of Peig and Green (2009) &lt;doi:10.1111/j.1600-0706.2009.17643.x&gt;, and simulates allometric morphological data with controllable scaling exponents, correlation structure, and measurement or transient error.">
+<meta property="og:description" content="Computes the Scaled Length Index (SLI) for size-correcting appendage lengths, following the scaled mass index approach of Peig and Green (2009) &lt;doi:10.1111/j.1600-0706.2009.17643.x&gt;, and simulates allometric morphological data with controllable scaling exponents, correlation structure, and measurement or transient error.">
 </head>
 <body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
@@ -22,7 +22,7 @@
 
     <a class="navbar-brand me-2" href="index.html">sliR</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.2.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.2.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -52,7 +52,7 @@
 </h1></div>
 <!-- badges: start -->
 
-<p>sliR computes the <strong>Standardized Length Index (SLI)</strong>, a size correction for appendage lengths, and simulates allometric morphological data with a known scaling exponent, correlation structure, and error.</p>
+<p>sliR computes the <strong>Scaled Length Index (SLI)</strong>, a size correction for appendage lengths, and simulates allometric morphological data with a known scaling exponent, correlation structure, and error.</p>
 <p>The SLI adapts the scaled mass index of Peig and Green (<a href="#ref-peigNewPerspectivesEstimating2009">2009</a>). Where their index standardises <em>mass</em> to a reference <em>length</em>, the SLI standardises a <em>length</em> to a reference <em>mass</em>:</p>
 <p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>S</mi><mi>L</mi><msub><mi>I</mi><mi>i</mi></msub><mo>=</mo><msub><mi>A</mi><mi>i</mi></msub><msup><mrow><mo stretchy="true" form="prefix">(</mo><mfrac><msub><mi>M</mi><mn>0</mn></msub><msub><mi>M</mi><mi>i</mi></msub></mfrac><mo stretchy="true" form="postfix">)</mo></mrow><mi>b</mi></msup></mrow><annotation encoding="application/x-tex">SLI_i = A_i \left( \frac{M_0}{M_i} \right)^{b}</annotation></semantics></math></p>
 <p>for individual <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>i</mi><annotation encoding="application/x-tex">i</annotation></semantics></math> with appendage length <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>A</mi><mi>i</mi></msub><annotation encoding="application/x-tex">A_i</annotation></semantics></math> and body mass <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>M</mi><mi>i</mi></msub><annotation encoding="application/x-tex">M_i</annotation></semantics></math>, an arbitrary reference mass <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>M</mi><mn>0</mn></msub><annotation encoding="application/x-tex">M_0</annotation></semantics></math>, and an allometric scaling exponent <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>b</mi><annotation encoding="application/x-tex">b</annotation></semantics></math>. The allometric scaling exponent is calculated using standardized major axis (SMA) regression, as recommended by Warton et al. (<a href="#ref-wartonSmatr3Package2012">2012</a>).</p>
@@ -61,7 +61,8 @@
 </h2>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># install.packages("remotes")</span></span>
-<span><span class="fu">remotes</span><span class="fu">::</span><span class="fu">install_github</span><span class="op">(</span><span class="st">"LezzGitIt/sliR"</span><span class="op">)</span></span></code></pre></div>
+<span><span class="co"># Pin a release tag so results are reproducible; see NEWS.md for changes between versions.</span></span>
+<span><span class="fu">remotes</span><span class="fu">::</span><span class="fu">install_github</span><span class="op">(</span><span class="st">"LezzGitIt/sliR@v0.2.1"</span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="computing-the-sli">Computing the SLI<a class="anchor" aria-label="anchor" href="#computing-the-sli"></a>
@@ -258,7 +259,7 @@
 <tbody>
 <tr>
 <td><code><a href="reference/calc_sli.html">calc_sli()</a></code></td>
-<td>Standardized Length Index per individual</td>
+<td>Scaled Length Index per individual</td>
 </tr>
 <tr>
 <td><code><a href="reference/build_sli_slopes_tbl.html">build_sli_slopes_tbl()</a></code></td>

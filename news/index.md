@@ -1,5 +1,14 @@
 # Changelog
 
+## sliR 0.2.1
+
+- Renamed the index the package computes from “Standardized Length
+  Index” to “**Scaled Length Index**”, matching the naming convention of
+  Peig & Green (2009)’s Scaled Mass Index, which it adapts. The
+  abbreviation `SLI` is unchanged, so no function, argument, or column
+  name changes — this is a documentation/metadata-only rename
+  (`DESCRIPTION`, roxygen docs, `README`, `inst/CITATION`).
+
 ## sliR 0.2.0
 
 Changes prompted by the first real use of the package, migrating the
@@ -92,8 +101,8 @@ SLI-allens-rule manuscript’s simulation and analysis onto sliR.
 First release.
 
 - [`calc_sli()`](https://LezzGitIt.github.io/sliR/reference/calc_sli.md)
-  computes the Standardized Length Index, adapting the scaled mass index
-  of Peig & Green (2009) to standardise appendage length to a reference
+  computes the Scaled Length Index, adapting the scaled mass index of
+  Peig & Green (2009) to standardise appendage length to a reference
   mass. Supports a scalar exponent or per-group SMA slopes via
   `control`.
 - [`build_sli_slopes_tbl()`](https://LezzGitIt.github.io/sliR/reference/build_sli_slopes_tbl.md)

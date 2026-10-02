@@ -16,7 +16,7 @@
   : Per-group SMA allometric slopes
 
 - [`calc_sli()`](https://LezzGitIt.github.io/sliR/reference/calc_sli.md)
-  : Standardized Length Index (SLI)
+  : Scaled Length Index (SLI)
 
 - [`implied_allometry()`](https://LezzGitIt.github.io/sliR/reference/implied_allometry.md)
   : Resolve an allometry from any sufficient subset of its parameters
