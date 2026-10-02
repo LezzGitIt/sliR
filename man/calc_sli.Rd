@@ -2,7 +2,7 @@
 % Please edit documentation in R/sli.R
 \name{calc_sli}
 \alias{calc_sli}
-\title{Standardized Length Index (SLI)}
+\title{Scaled Length Index (SLI)}
 \usage{
 calc_sli(
   df,

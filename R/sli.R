@@ -1,6 +1,6 @@
-# Standardized Length Index ----
+# Scaled Length Index ----
 
-#' Standardized Length Index (SLI)
+#' Scaled Length Index (SLI)
 #'
 #' Size-corrects an appendage length by rescaling every individual to a common
 #' reference body mass, following the scaled mass index of Peig & Green (2009).

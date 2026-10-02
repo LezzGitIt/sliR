@@ -14,21 +14,21 @@ citHeader("To cite sliR in publications, please use:")
 ## every style tested.
 bibentry(
   bibtype  = "Manual",
-  title    = paste0("{sliR}: Standardized Length Index and Allometric Data ",
+  title    = paste0("{sliR}: Scaled Length Index and Allometric Data ",
                     "Simulation (Version ", version, ")"),
   author   = person("Aaron", "Skinner"),
   year     = year,
   note     = paste("R package version", version),
   url      = "https://github.com/LezzGitIt/sliR",
   textVersion = paste0(
-    "Skinner, A. (", year, "). sliR: Standardized Length Index and Allometric ",
+    "Skinner, A. (", year, "). sliR: Scaled Length Index and Allometric ",
     "Data Simulation (Version ", version, "). ",
     "https://github.com/LezzGitIt/sliR"
   )
 )
 
 citFooter(
-  "The Standardized Length Index adapts the scaled mass index of ",
+  "The Scaled Length Index adapts the scaled mass index of ",
   "Peig & Green (2009) Oikos 118:1883-1891. SMA slopes are fitted with smatr; ",
   "see citation(\"smatr\")."
 )

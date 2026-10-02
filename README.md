@@ -9,9 +9,9 @@
 [![pkgdown](https://img.shields.io/badge/docs-pkgdown-blue.svg)](https://lezzgitit.github.io/sliR/)
 <!-- badges: end -->
 
-sliR computes the **Standardized Length Index (SLI)**, a size correction
-for appendage lengths, and simulates allometric morphological data with
-a known scaling exponent, correlation structure, and error.
+sliR computes the **Scaled Length Index (SLI)**, a size correction for
+appendage lengths, and simulates allometric morphological data with a
+known scaling exponent, correlation structure, and error.
 
 The SLI adapts the scaled mass index of Peig and Green
 ([2009](#ref-peigNewPerspectivesEstimating2009)). Where their index
@@ -307,7 +307,7 @@ not the other. `build_cov_mat()` exposes the covariance matrix that
 
 | Function | Purpose |
 |----|----|
-| `calc_sli()` | Standardized Length Index per individual |
+| `calc_sli()` | Scaled Length Index per individual |
 | `build_sli_slopes_tbl()` | Per-group SMA allometric slopes |
 | `build_group_cor_tbl()` | Per-group diagnostic for whether allometry is meaningful |
 | `sim_allometric()` | Log-normal traits with a target allometry, optionally along a gradient |

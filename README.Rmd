@@ -24,7 +24,7 @@ knitr::opts_chunk$set(
 [![pkgdown](https://img.shields.io/badge/docs-pkgdown-blue.svg)](https://lezzgitit.github.io/sliR/)
 <!-- badges: end -->
 
-sliR computes the **Standardized Length Index (SLI)**, a size correction for
+sliR computes the **Scaled Length Index (SLI)**, a size correction for
 appendage lengths, and simulates allometric morphological data with a known
 scaling exponent, correlation structure, and error.
 
@@ -226,7 +226,7 @@ slope responds to correlation and to error on one trait but not the other.
 
 | Function | Purpose |
 |---|---|
-| `calc_sli()` | Standardized Length Index per individual |
+| `calc_sli()` | Scaled Length Index per individual |
 | `build_sli_slopes_tbl()` | Per-group SMA allometric slopes |
 | `build_group_cor_tbl()` | Per-group diagnostic for whether allometry is meaningful |
 | `sim_allometric()` | Log-normal traits with a target allometry, optionally along a gradient |

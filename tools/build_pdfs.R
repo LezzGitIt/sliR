@@ -75,7 +75,7 @@ overview <- file.path(scratch, "sliR_overview.Rmd")
 writeLines(c(
   "---",
   'title: "sliR"',
-  'subtitle: "Standardized Length Index and Allometric Data Simulation"',
+  'subtitle: "Scaled Length Index and Allometric Data Simulation"',
   'author: "Aaron Skinner"',
   "date: \"`r format(Sys.Date(), '%d %B %Y')`\"",
   paste0('bibliography: "', file.path(repo, "references.bib"), '"'),

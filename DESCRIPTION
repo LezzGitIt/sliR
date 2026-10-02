@@ -1,9 +1,9 @@
 Package: sliR
-Title: Standardized Length Index and Allometric Data Simulation
+Title: Scaled Length Index and Allometric Data Simulation
 Version: 0.2.0
 Authors@R:
     person("Aaron", "Skinner", , "skinnerayayron93@gmail.com", role = c("aut", "cre"))
-Description: Computes the Standardized Length Index (SLI) for size-correcting
+Description: Computes the Scaled Length Index (SLI) for size-correcting
     appendage lengths, following the scaled mass index approach of Peig and
     Green (2009) <doi:10.1111/j.1600-0706.2009.17643.x>, and simulates
     allometric morphological data with controllable scaling exponents,
