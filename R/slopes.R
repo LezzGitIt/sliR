@@ -51,8 +51,8 @@ check_control_types <- function(df, control, call = rlang::caller_env()) {
 #' from slope fitting and from the returned table.
 #'
 #' @inheritParams calc_sli
-#' @param control Character vector of grouping columns. Each must be character
-#'   or factor.
+#' @param control Character vector of one or more grouping columns. Each must
+#'   be character or factor.
 #' @param slope_diff_warn Warn when the per-variable SMA slopes being averaged
 #'   within a cell span more than this. Defaults to `0.15`, roughly half the
 #'   isometric exponent. `NULL` or `Inf` disables the check. Has no effect with
@@ -82,6 +82,9 @@ build_sli_slopes_tbl <- function(df,
                                  slope_diff_warn = 0.15) {
   app_nm  <- rlang::as_label(rlang::enquo(Append))
   mass_nm <- rlang::as_label(rlang::enquo(Mass))
+  if (length(control) == 0) {
+    rlang::abort('`control` must name at least one grouping column. For no grouping, use `calc_sli(control = NULL)` (scalar `b_sli`) or `calc_sli(control = character(0), method = "hierarchical")` (pooled SMA slope).')
+  }
   check_cols(df, c(app_nm, mass_nm, control))
   check_control_types(df, control)
 

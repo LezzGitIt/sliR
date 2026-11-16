@@ -40,6 +40,12 @@ test_that("build_sli_slopes_tbl rejects a numeric grouping column", {
   expect_error(build_sli_slopes_tbl(d, control = "grp"), "character or factor")
 })
 
+test_that("build_sli_slopes_tbl rejects an empty control, and calc_sli passes that through", {
+  d <- make_grouped()
+  expect_error(build_sli_slopes_tbl(d, control = character(0)), "at least one grouping column")
+  expect_error(calc_sli(d, control = character(0)), "at least one grouping column")
+})
+
 test_that("averaging slopes that disagree by more than slope_diff_warn warns", {
   d <- make_divergent_slopes()
   expect_warning(build_sli_slopes_tbl(d, control = c("Age", "Sex")), "differ by more than 0.15")

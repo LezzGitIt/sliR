@@ -19,8 +19,8 @@ build_group_cor_tbl(
 \strong{These default to columns literally named \code{Append} and \code{Mass}.} If your
 columns are named otherwise, pass them explicitly (e.g. \verb{Append = wing, Mass = mass}); an informative error is raised if the columns are absent.}
 
-\item{control}{Character vector of grouping columns. Each must be character
-or factor.}
+\item{control}{Character vector of one or more grouping columns. Each must
+be character or factor.}
 
 \item{unknown_codes}{Values in the \code{control} columns that mark an unknown
 group and so cannot be assigned a slope under \code{method = "average"}.}
