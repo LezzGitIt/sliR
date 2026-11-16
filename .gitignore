@@ -11,3 +11,5 @@ README.html
 # Internal project memory; not for the public repo (see Project_notes.md decision, 2026-07-09)
 Project_notes.md
 docs
+*.Rcheck/
+sliR_*.tar.gz

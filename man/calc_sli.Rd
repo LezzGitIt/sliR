@@ -47,7 +47,16 @@ by a group-specific slope, resolved as \code{method} describes. Individuals
 whose \code{control} values are \code{NA} or match \code{unknown_codes} receive
 \code{sli = NA} under \code{method = "average"}; under \code{"hierarchical"} they
 instead cascade through the same fallback as everyone else (see
-\code{\link[=build_sli_slopes_hierarchical]{build_sli_slopes_hierarchical()}}).}
+\code{\link[=build_sli_slopes_hierarchical]{build_sli_slopes_hierarchical()}}).
+
+\code{NULL} and \code{character(0)} are \strong{not} interchangeable. \code{NULL} means no
+control at all, so the scalar \code{b_sli} is used. Under
+\code{method = "hierarchical"}, \code{character(0)} instead resolves every row to
+the pooled SMA slope. This matters when \code{control} is built conditionally:
+\code{c(if (use_age) "Age", if (use_sex) "Sex")} is \code{NULL}, not \code{character(0)},
+when every condition is \code{FALSE}, silently giving the scalar \code{b_sli}
+(isometric by default).
+Wrap such a vector in \code{as.character()} if the pooled slope is intended.}
 
 \item{method}{How a group's slope is resolved when \code{control} is supplied.
 \code{"average"} (the default) uses \code{\link[=build_sli_slopes_tbl]{build_sli_slopes_tbl()}}: every

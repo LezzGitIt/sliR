@@ -35,6 +35,15 @@
 #'   `sli = NA` under `method = "average"`; under `"hierarchical"` they
 #'   instead cascade through the same fallback as everyone else (see
 #'   [build_sli_slopes_hierarchical()]).
+#'
+#'   `NULL` and `character(0)` are **not** interchangeable. `NULL` means no
+#'   control at all, so the scalar `b_sli` is used. Under
+#'   `method = "hierarchical"`, `character(0)` instead resolves every row to
+#'   the pooled SMA slope. This matters when `control` is built conditionally:
+#'   `c(if (use_age) "Age", if (use_sex) "Sex")` is `NULL`, not `character(0)`,
+#'   when every condition is `FALSE`, silently giving the scalar `b_sli`
+#'   (isometric by default).
+#'   Wrap such a vector in `as.character()` if the pooled slope is intended.
 #' @param method How a group's slope is resolved when `control` is supplied.
 #'   `"average"` (the default) uses [build_sli_slopes_tbl()]: every
 #'   `control` variable's own SMA slope, averaged together unconditionally.

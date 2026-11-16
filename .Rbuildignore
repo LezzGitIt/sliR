@@ -12,3 +12,5 @@
 ^_pkgdown\.yml$
 ^docs$
 ^pkgdown$
+^.*\.Rcheck$
+^sliR_.*\.tar\.gz$
