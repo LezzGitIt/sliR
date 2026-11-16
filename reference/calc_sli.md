@@ -68,6 +68,16 @@ calc_sli(
   they instead cascade through the same fallback as everyone else (see
   [`build_sli_slopes_hierarchical()`](https://LezzGitIt.github.io/sliR/reference/build_sli_slopes_hierarchical.md)).
 
+  `NULL` and `character(0)` are **not** interchangeable. `NULL` means no
+  control at all, so the scalar `b_sli` is used. Under
+  `method = "hierarchical"`, `character(0)` instead resolves every row
+  to the pooled SMA slope. This matters when `control` is built
+  conditionally: `c(if (use_age) "Age", if (use_sex) "Sex")` is `NULL`,
+  not `character(0)`, when every condition is `FALSE`, silently giving
+  the scalar `b_sli` (isometric by default). Wrap such a vector in
+  [`as.character()`](https://rdrr.io/r/base/character.html) if the
+  pooled slope is intended.
+
 - method:
 
   How a group's slope is resolved when `control` is supplied.

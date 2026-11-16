@@ -1,5 +1,17 @@
 # Changelog
 
+## sliR (development version)
+
+- [`build_sli_slopes_tbl()`](https://LezzGitIt.github.io/sliR/reference/build_sli_slopes_tbl.md),
+  and so `calc_sli(method = "average")`, now gives a clear error when
+  `control` is `character(0)`, pointing to `control = NULL` (scalar
+  `b_sli`) or `method = "hierarchical"` (pooled SMA slope) instead of
+  failing inside `dplyr`.
+- [`?calc_sli`](https://LezzGitIt.github.io/sliR/reference/calc_sli.md)
+  documents that `control = NULL` and `control = character(0)` are not
+  interchangeable, including the conditional `c(if ...)` construction
+  that silently yields `NULL`.
+
 ## sliR 0.2.1
 
 - Renamed the index the package computes from “Standardized Length

@@ -36,8 +36,8 @@ build_group_cor_tbl(
 
 - control:
 
-  Character vector of grouping columns. Each must be character or
-  factor.
+  Character vector of one or more grouping columns. Each must be
+  character or factor.
 
 - unknown_codes:
 
